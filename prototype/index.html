@@ -63,6 +63,8 @@ button{cursor:pointer}
 .role:hover{background:var(--nav-2)}
 .role.on{background:var(--nav-2);border-color:#2E5058}
 .role.on b{color:#7FD6DB}
+.orgsw{display:grid;gap:4px;padding:2px 10px 6px;font-size:11px;color:var(--nav-soft)}
+.orgsw select{background:var(--nav-2);color:var(--nav-ink);border:1px solid #2E5058;border-radius:8px;padding:5px 8px;font:inherit;font-size:12px}
 .nav{display:grid;gap:2px}
 .nav button{display:flex;justify-content:space-between;align-items:center;gap:8px;border:0;background:transparent;border-radius:8px;padding:8px 10px;color:var(--nav-ink);text-align:left}
 .nav button:hover{background:var(--nav-2)}
@@ -79,18 +81,7 @@ button{cursor:pointer}
 .top .crumb{font-size:12px;color:var(--soft)}
 .top .sp{flex:1}
 .top-new{white-space:nowrap}
-.newmenu{position:relative}
-.newpop{position:absolute;right:0;top:calc(100% + 8px);width:min(340px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;z-index:40;display:grid;gap:2px}
-.newpop button{display:grid;gap:2px;text-align:left;border:0;background:none;border-radius:8px;padding:10px 12px;font:inherit;color:var(--ink);cursor:pointer}
-.newpop button:hover,.newpop button:focus-visible{background:var(--surface-2)}
-.newpop b{font-size:13.5px}
-.newpop small{font-size:12px;color:var(--soft);line-height:1.4}
-.newpop .draft{color:var(--warn);font-weight:600}
-.pick-list{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
-.pick-list button{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:9px 12px;font:inherit;color:inherit;cursor:pointer}
-.pick-list button:last-child{border-bottom:0}
-.pick-list button:hover{background:var(--surface-2)}
-.pick-list small{grid-column:2;color:var(--soft);font-size:12px}
+.top-draft{font-weight:500;opacity:.8;font-size:12px;margin-left:4px}
 .who{font-size:12.5px;color:var(--soft);text-align:right;line-height:1.3}
 .who b{color:var(--ink);font-weight:600;display:block}
 .bell{position:relative;border:1px solid var(--line);background:var(--surface);border-radius:10px;width:38px;height:38px;display:grid;place-items:center}
@@ -272,6 +263,16 @@ figure{margin:0}
 .item-tab .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
 .item-tab.todo .dot{background:var(--warn)}
 .item-tab .itl.noname{font-style:italic;color:var(--soft)}
+.empty-cta{display:grid;gap:8px;justify-items:start;padding:28px 22px}
+.empty-cta b{font-size:15px}
+.welcome h2{font-family:var(--f-disp);font-size:20px;margin:0 0 6px}
+.welcome .card-b{display:grid;gap:8px}
+.wsteps{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.wsteps li{display:grid;grid-template-columns:32px 1fr;gap:12px;align-items:start}
+.wsteps .wn{width:32px;height:32px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700}
+.wsteps b{display:block}
+.wsteps small{color:var(--soft);font-size:12px}
+.wsteps p{margin:4px 0 0;font-size:13px}
 .help{display:grid;gap:18px;max-width:980px}
 .help h2{font-size:17px;margin:0 0 8px}
 .help h4{font-size:14px;margin:14px 0 6px}
@@ -292,6 +293,7 @@ figure{margin:0}
 
 /* app review */
 .pos{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+.posn{width:20px;height:20px;border-radius:50%;background:var(--warn);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;flex:none}
 .pos.focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
 .pos-h{display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface-2);flex-wrap:wrap}
 .pos-b{display:grid;grid-template-columns:170px 1fr;gap:14px;padding:12px 14px}
@@ -388,14 +390,18 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const TZ = 'Asia/Yekaterinburg';
 const fmtD = iso => iso ? new Date(iso).toLocaleDateString('ru-RU', {timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric'}) : '—';
 const fmtDT = iso => iso ? new Date(iso).toLocaleString('ru-RU', {timeZone: TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) : '—';
-const STORE_KEY = 'erk-prototype-v9';
+const STORE_KEY = 'erk-prototype-v10';
 
 /* ---------- справочники ---------- */
 const ORGS = {
   edds: {name: 'МКУ «ЕДДС г. Ноябрьск»', short: 'ЕДДС', mask: 'НБР.ЕДДС', type: 'ОМСУ (МКУ)', contact: 'Дежурная смена ЕДДС, +7 (3496) 00-00-01 (демо)', net: 96, self: false, support: 'ssr'},
   adm:  {name: 'Администрация г. Ноябрьск', short: 'Администрация', mask: 'НБР.АДМ', type: 'ОМСУ', contact: 'Отдел благоустройства, +7 (3496) 00-00-02 (демо)', net: 97, self: false, support: 'ytm'},
+  sch:  {name: 'МБОУ «СОШ № 1» г. Ноябрьск (демо)', short: 'СОШ № 1', mask: 'НБР.СОШ1', type: 'Муниципальное учреждение', contact: 'Заместитель директора по безопасности, +7 (3496) 00-00-04 (демо)', net: 99, self: true, support: 'self'},
   edu:  {name: 'Управление образования г. Ноябрьск', short: 'Образование', mask: 'НБР.ОБР', type: 'ОМСУ (управление)', contact: 'Отдел комплексной безопасности, +7 (3496) 00-00-03 (демо)', net: 98, self: true, support: 'self'},
 };
+/* владелец в демо: организация с камерами или новая организация, которая зашла впервые */
+const OWNER_ORGS = {edds: {sub: 'МКУ «ЕДДС г. Ноябрьск»', actor: 'Специалист ЕДДС', hint: 'камеры уже есть'}, sch: {sub: 'МБОУ «СОШ № 1» (демо)', actor: 'Зам. директора СОШ № 1', hint: 'новая, камер нет'}};
+function setOwnerOrg(k) { if (!OWNER_ORGS[k]) k = 'edds'; Object.assign(ROLES.owner, {org: k, sub: OWNER_ORGS[k].sub, actor: OWNER_ORGS[k].actor}); }
 const ROLES = {
   owner: {title: 'Владелец камер', sub: 'МКУ «ЕДДС г. Ноябрьск»', org: 'edds', actor: 'Специалист ЕДДС'},
   drb:   {title: 'ДРБ ЯНАО', sub: 'Согласование', actor: 'Специалист ДРБ'},
@@ -912,7 +918,10 @@ const bad = (code, msg) => { throw new ApiError(422, code, msg); };
 const conflict = (code, msg) => { throw new ApiError(409, code, msg); };
 function actor() { return ROLES[S.role].actor; }
 function audit(action, obj) { S.audit.unshift({t: S.clock, who: actor(), action, obj}); }
-function notify(role, text, link = null) { S.notes.unshift({id: 'n' + Math.random().toString(36).slice(2, 8), role, t: S.clock, text, link, read: false}); }
+function notify(role, text, link = null) {
+  const org = role !== 'owner' ? null : (link && link.org) || (link && link.cam && cam(link.cam) && cam(link.cam).org) || (link && link.id && appById(link.id) && appById(link.id).org) || 'edds';
+  S.notes.unshift({id: 'n' + Math.random().toString(36).slice(2, 8), role, org, t: S.clock, text, link, read: false});
+}
 function hist(c, text) { c.history.push({t: S.clock, who: actor(), text}); }
 function call(method, path, fn) {
   if (method !== 'GET') tick();
@@ -976,6 +985,7 @@ const API = {
     S.apps.push(a);
     audit(`Подано заявление (${a.items.length} кам.)`, id);
     notify('drb', `Новое заявление ${id} от ${ORGS[org].short}: ${a.items.length} кам.`, {page: 'app', id});
+    notify('owner', `Заявление ${id} подано (${a.items.length} кам.). ДРБ рассмотрит до ${fmtD(a.deadline)}.`, {page: 'app', id, org});
     S.draft = null; return a;
   },
   take(appId) {
@@ -1090,7 +1100,7 @@ const API = {
     if (f.password || f.user) {
       if (!f.user.trim() || !f.password) bad('VALIDATION', 'Укажите и имя пользователя, и пароль');
       if (weak(f.password)) f.weakPass = true;
-    } else if (!had) bad('VALIDATION', 'Укажите логин и пароль — в RTSP-ссылке или отдельными полями');
+    } else if (!had) bad('VALIDATION', 'RTSP-ссылка должна содержать логин и пароль: rtsp://логин:пароль@адрес:порт/…');
 
     if (ptz) {
       if (f.ptzPassword || f.ptzUser) { if (!f.ptzUser.trim() || !f.ptzPassword) bad('VALIDATION', 'Для PTZ укажите и имя пользователя, и пароль'); if (weak(f.ptzPassword)) f.weakPass = true; }
@@ -1126,6 +1136,7 @@ const API = {
     if (azDev > 15) notify('drb', `${c.num}: фактический азимут отличается от согласованного на ${azDev}°.`, {cam: c.id});
     if (ready && c.esv === 'none') notify('rya', `${c.num} смонтирована, данные для ЕСВ заполнены — готова к включению в соглашение. Срок подключения — ${fmtD(addWD(dOnly(S.clock), RYA_SLA_WD))}.`, {page: 'connect'});
     if (ready) notify('owner', `${c.num}: данные для ЕСВ приняты, камера передана в «Ресурсы Ямала». Подключение — до ${fmtD(addWD(dOnly(c.readyAt), RYA_SLA_WD))}.`, {cam: c.id});
+    if (ready && c.esv === 'none' && !Object.values(S.agreements).some(g => g.org === c.org)) notify('owner', `У ${ORGS[c.org].short} ещё нет соглашения с «Ресурсами Ямала» — оно заключается один раз. РЯ подготовит его при подключении ${c.num} и свяжется с вами для подписания.`, {page: 'agreements', org: c.org});
     return {accepted: p.accepted, ready, missing, checks, pendingModel};
   },
   reviewModel(id, approve, reason) {
@@ -1159,7 +1170,7 @@ const API = {
       if (!newAg.file) bad('VALIDATION', 'Приложите скан подписанного соглашения');
       agId = 'ag' + Date.now(); S.agreements[agId] = {org: c.org, title: `Соглашение № ${newAg.num.trim()} от ${fmtD(newAg.date + 'T12:00:00Z')}`, created: S.clock, file: newAg.file};
       audit(`Оформлено соглашение: ${S.agreements[agId].title}`, ORGS[c.org].short);
-      notify('owner', `Оформлено ${S.agreements[agId].title} с «Ресурсами Ямала».`, {page: 'agreements'});
+      notify('owner', `Оформлено ${S.agreements[agId].title} с «Ресурсами Ямала».`, {page: 'agreements', org: c.org});
     }
     if (!S.agreements[agId] || S.agreements[agId].org !== c.org) bad('VALIDATION', 'Соглашение не относится к организации-владельцу');
     c.esv = 'agreement'; c.agreement = agId; c.agreedAt = S.clock;
@@ -1445,12 +1456,12 @@ function toast(msg, kind = 'ok', code = '') {
   el.innerHTML = (code ? `<code>${esc(code)}</code>` : '') + esc(msg);
   $('#toasts').appendChild(el); setTimeout(() => el.remove(), kind === 'bad' ? 6500 : 3800);
 }
-const myNotes = () => S.notes.filter(n => n.role === S.role);
+const myNotes = () => S.notes.filter(n => n.role === S.role && (S.role !== 'owner' || (n.org || 'edds') === ROLES.owner.org));
 
 /* ---------- карта: разметка ---------- */
 function mapHTML(key, {cams, selId = null, drafts = [], draftSel = -1, focus = null, placing = false, hint = ''}) {
   if (!VIEWS[key]) {
-    if (focus) { const pad = 170; VIEWS[key] = {x: focus[0] - pad, y: focus[1] - pad * .7, w: focus[2] - focus[0] + pad * 2, h: focus[3] - focus[1] + pad * 1.4}; }
+    if (focus) { const pad = 150, side = Math.max(focus[2] - focus[0], focus[3] - focus[1]) + pad * 2, cx = (focus[0] + focus[2]) / 2, cy = (focus[1] + focus[3]) / 2; VIEWS[key] = {x: cx - side / 2, y: cy - side / 2, w: side, h: side}; }
     else VIEWS[key] = {x: 0, y: 30, w: 1200, h: 780};
   }
   const v = VIEWS[key];
@@ -1473,8 +1484,8 @@ function mapHTML(key, {cams, selId = null, drafts = [], draftSel = -1, focus = n
     pts += `<g data-dg="${i}"><circle class="pt c-draft" cx="${d.x}" cy="${d.y}" r="7"/><text x="${d.x}" y="${d.y + 3.5}" text-anchor="middle" font-size="9" font-weight="700" fill="#fff" font-family="var(--f-mono)" pointer-events="none">${i + 1}</text><circle class="hit" data-draft="${i}" cx="${d.x}" cy="${d.y}" r="13" style="cursor:grab"><title>Позиция ${i + 1} — перетащите, чтобы сдвинуть</title></circle></g>`;
   });
   const legend = S.role === 'owner'
-    ? `<span><i style="background:var(--ok)"></i>рабочие</span><span><i style="background:var(--info)"></i>кандидаты</span><span><i style="background:var(--bad)"></i>неисправны</span><span><i style="border:2px solid var(--mute);background:var(--surface)"></i>чужие (без техданных)</span>${drafts.length ? '<span><i style="background:var(--warn)"></i>новые</span>' : ''}`
-    : `<span><i style="background:var(--ok)"></i>рабочие</span><span><i style="background:var(--info)"></i>кандидаты</span><span><i style="background:var(--bad)"></i>неисправны</span><span><i style="background:var(--mute)"></i>архив</span>`;
+    ? `<span><i style="background:var(--ok)"></i>рабочие</span><span><i style="background:var(--info)"></i>кандидаты</span><span><i style="background:var(--bad)"></i>неисправны</span><span><i style="border:2px solid var(--mute);background:var(--surface)"></i>чужие (без техданных)</span>${drafts.length ? `<span><i style="background:var(--warn)"></i>${key === 'wiz' ? 'новые' : 'камеры заявления'}</span>` : ''}`
+    : `<span><i style="background:var(--ok)"></i>рабочие</span><span><i style="background:var(--info)"></i>кандидаты</span><span><i style="background:var(--bad)"></i>неисправны</span><span><i style="background:var(--mute)"></i>архив</span>${drafts.length ? '<span><i style="background:var(--warn)"></i>камеры заявления</span>' : ''}`;
   return `<div class="map${placing ? ' placing' : ''}" data-map="${key}">
     <svg viewBox="${v.x} ${v.y} ${v.w} ${v.h}" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Карта ЕКС ЯНАО с камерами и секторами обзора"><rect x="-300000" y="-400000" width="1200000" height="1200000" fill="var(--land)"/><g class="tl"></g><g>${sec}</g><g>${pts}</g></svg>
     <div class="map-zoom"><button data-zoom="in" aria-label="Приблизить">+</button><button data-zoom="out" aria-label="Отдалить">−</button><button data-zoom="reset" aria-label="Ноябрьск" title="Ноябрьск" style="font-size:12px">⤢</button><button data-zoom="region" aria-label="Весь ЯНАО" title="Весь ЯНАО" style="font-size:10px">ЯНАО</button></div>
@@ -1521,7 +1532,7 @@ function attachMaps() {
       if (moved) return;
       const t = document.elementFromPoint(e.clientX, e.clientY);
       const hitCam = t && t.closest && t.closest('[data-cam]'), hitDraft = t && t.closest && t.closest('[data-draft]');
-      if (hitDraft) { UI.wizSel = +hitDraft.dataset.draft; render(); return; }
+      if (hitDraft) { if (key === 'wiz') UI.wizSel = +hitDraft.dataset.draft; else UI.focusItem = +hitDraft.dataset.draft; render(); return; }
       if (hitCam) { onMapCam(hitCam.dataset.cam, key); return; }
       if (el.classList.contains('placing')) { const p = toSvg(e.clientX, e.clientY); addDraftItem(Math.round(p.x), Math.round(p.y)); }
     });
@@ -1591,7 +1602,7 @@ function render() {
         <div><b>Единый реестр камер</b><span>прототип · ЯНАО</span></div>
       </div>
       <div><div class="lbl">Рабочее место</div><div class="roles">
-        ${Object.entries(ROLES).map(([k, r]) => `<button class="role${k === role ? ' on' : ''}" data-act="role" data-v="${k}"><b>${esc(r.title)}</b><small>${esc(r.sub)}</small></button>`).join('')}
+        ${Object.entries(ROLES).map(([k, r]) => `<button class="role${k === role ? ' on' : ''}" data-act="role" data-v="${k}"><b>${esc(r.title)}</b><small>${esc(r.sub)}</small></button>${k === 'owner' && role === 'owner' ? `<label class="orgsw"><span>Демо: организация</span><select id="f-ownerorg">${Object.entries(OWNER_ORGS).map(([o, x]) => `<option value="${o}"${ROLES.owner.org === o ? ' selected' : ''}>${esc(ORGS[o].short)} — ${esc(x.hint)}</option>`).join('')}</select></label>` : ''}`).join('')}
       </div></div>
       <div><div class="lbl">Разделы</div><nav class="nav">
         ${nav.map(([k, t]) => { const n = navCount(k); return `<button class="${UI.page === k || (UI.page === 'app' && ((k === 'queue' && role === 'drb') || (k === 'apps' && role === 'owner'))) ? 'on' : ''}" data-act="nav" data-v="${k}"><span>${t}</span>${n ? `<span class="cnt${HOT[k] ? ' hot' : ''}">${n}</span>` : ''}</button>`; }).join('')}
@@ -1605,7 +1616,7 @@ function render() {
       <header class="top">
         <div><div class="crumb">${esc(ROLES[role].title)} · ${esc(ROLES[role].sub)}</div><h1>${esc(titles[UI.page])}</h1></div>
         <div class="sp"></div>
-        ${role === 'owner' ? `<div class="newmenu"><button class="btn pri top-new" data-act="newmenu" aria-expanded="${UI.newMenu ? 'true' : 'false'}">+ Подать заявление <span aria-hidden="true">▾</span></button>${UI.newMenu ? newMenuHTML() : ''}</div>` : ''}
+        ${role === 'owner' && UI.page !== 'new' ? `<button class="btn pri top-new" data-act="nav" data-v="new" title="Заявление на размещение: поставить камеры на карте">+ Разместить камеры${S.draft && S.draft.items.length && !S.draft.appId ? ` <span class="top-draft">черновик: ${S.draft.items.length}</span>` : ''}</button>` : ''}
         <div class="who"><b>${esc(ROLES[role].actor)}</b>демо-пользователь</div>
         <button class="bell" data-act="bell" aria-label="Уведомления"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>${unread ? `<i>${unread}</i>` : ''}</button>
         ${UI.bell ? bellPop() : ''}
@@ -1614,23 +1625,6 @@ function render() {
     </main></div>`;
   attachMaps();
   if (UI.camId) renderDrawer();
-}
-function newMenuHTML() {
-  const dr = S.draft && S.draft.items.length && !S.draft.appId ? S.draft.items.length : 0;
-  return `<div class="newpop" role="menu">
-    <button role="menuitem" data-act="nav" data-v="new"><b>Размещение новых камер</b><small>Поставить точки на карте — до 50 камер в одном заявлении.${dr ? ` <span class="draft">Есть черновик: ${dr} кам.</span>` : ''}</small></button>
-    <button role="menuitem" data-act="pick" data-v="change"><b>Изменение камеры</b><small>Повернуть, переименовать, сменить назначение или класс смонтированной камеры.</small></button>
-    <button role="menuitem" data-act="pick" data-v="retire"><b>Вывод камеры</b><small>Камера демонтируется или больше не нужна — её отключат от ЕСВ и уберут в архив.</small></button>
-  </div>`;
-}
-function mPick(kind) {
-  const list = S.cameras.filter(c => c.org === ROLES.owner.org && c.place === 'installed' && !c.retireApproved);
-  modal(kind === 'change' ? 'Изменение камеры — выберите камеру' : 'Вывод камеры — выберите камеру',
-    `<label class="fld"><span>Поиск</span><input type="search" id="f-pick" placeholder="Номер, наименование или адрес" autocomplete="off"></label>
-     <div class="pick-list">${list.map(c => `<button data-act="pickcam" data-v="${c.id}" data-k="${kind}" data-s="${esc((c.num + ' ' + c.name + ' ' + c.address).toLowerCase())}"><span class="num">${c.num}</span><span>${esc(c.name)}</span><small>${esc(c.address)} · ${DERIVED[derived(c)][0]}</small></button>`).join('') || '<div class="empty">Смонтированных камер нет</div>'}</div>
-     <div class="faint" style="font-size:12px">В списке — смонтированные камеры вашей организации. Камеру, которую ещё не смонтировали, исправляют через доработку или отзыв заявления на размещение.</div>`,
-    `<button class="btn" data-act="mclose">Отмена</button>`);
-  setTimeout(() => { const f = $('#f-pick'); if (f) f.focus(); }, 0);
 }
 function bellPop() {
   const ns = myNotes().slice(0, 30);
@@ -1642,19 +1636,36 @@ function ownerTasks() {
   const org = ROLES.owner.org, t = [];
   for (const a of S.apps.filter(a => a.org === org && a.status === 'rework')) {
     const items = a.items.filter(i => i.decision && i.decision.outcome === 'rework');
-    t.push({k: 'warn', title: `Заявление ${a.id} возвращено на доработку`, text: items.map(i => `${cam(i.camId).num}: ${i.decision.reasons.map(r => REASONS[r]).join('; ')}`).join(' · '), act: 'rework', v: a.id, btn: 'Исправить и подать'});
+    t.push({k: 'warn', title: `Заявление ${a.id} возвращено на доработку`, text: items.map(i => `${cam(i.camId).num}: ${i.decision.reasons.map(r => REASONS[r]).join('; ')}${i.decision.comment ? ' — «' + i.decision.comment + '»' : ''}`).join(' · '), act: 'rework', v: a.id, btn: 'Исправить и подать'});
   }
   for (const i of S.incidents.filter(i => i.status === 'open' && cam(i.camId).org === org)) {
     const c = cam(i.camId); t.push({k: 'bad', title: `${c.num} недоступна с ${fmtDT(i.opened)}`, text: `${c.name}. Заявка направлена: ${supportOf(c).name}. Срок восстановления — до ${fmtDT(i.due)}.`, act: 'cam', v: c.id, btn: 'Открыть'});
   }
   for (const c of S.cameras.filter(c => c.org === org && c.rework)) t.push({k: 'warn', title: `${c.num}: «Ресурсы Ямала» вернули на исправление`, text: c.rework.reason, act: 'install', v: c.id, btn: 'Исправить данные'});
-  for (const c of S.cameras.filter(c => c.org === org && c.place === 'permitted')) t.push({k: c.permitUntil && wdLeft(c.permitUntil) <= 10 ? 'warn' : 'accent', title: `${c.num} одобрена — смонтируйте и внесите данные для ЕСВ`, text: `${c.name}.${c.permitUntil ? ' Согласование действует до ' + fmtD(c.permitUntil) + '.' : ''} Этап 2: модель, IP-адрес, RTSP, учётные данные, фактический азимут, техобслуживание.`, act: 'install', v: c.id, btn: 'Данные для ЕСВ'});
+  for (const c of S.cameras.filter(c => c.org === org && c.place === 'permitted')) t.push({k: c.permitUntil && wdLeft(c.permitUntil) <= 10 ? 'warn' : 'accent', title: `${c.num} одобрена — смонтируйте камеру и внесите данные`, text: `${c.name}. После монтажа укажите модель, IP-адрес, RTSP-ссылку с паролем и кто обслуживает камеру.${c.permitUntil ? ' Одобрение действует до ' + fmtD(c.permitUntil) + '.' : ''}`, act: 'install', v: c.id, btn: 'Внести данные'});
   for (const c of S.cameras.filter(c => c.org === org && c.place === 'installed' && !c.needsPassport && c.passport && !c.passport.accepted)) t.push({k: 'warn', title: `${c.num}: модель не прошла проверку по требованиям ЕСВ`, text: c.passport.issues.join('; '), act: 'install', v: c.id, btn: 'Исправить'});
   for (const c of S.cameras.filter(c => c.org === org && c.place === 'installed' && (c.needsPassport || stage2Missing(c).length))) t.push({k: 'info', title: `${c.num}${c.needsPassport ? ' импортирована из ЕСВ' : ''} — дозаполните данные для ЕСВ`, text: 'Не хватает: ' + stage2Missing(c).join(', '), act: 'install', v: c.id, btn: 'Дозаполнить'});
   return t;
 }
+function pageWelcome(org) {
+  const hasDraft = S.draft && S.draft.items.length && !S.draft.appId;
+  const step = (n, t, who, d) => `<li><span class="wn">${n}</span><div><b>${t}</b><small>${who}</small><p>${d}</p></div></li>`;
+  return `<section class="card welcome"><div class="card-b">
+      <h2>Здравствуйте! В реестре пока нет камер ${esc(ORGS[org].short)}</h2>
+      <p class="muted">Здесь будут все камеры вашей организации, которые подключены к Единой системе видеонаблюдения, и те, что вы планируете подключить. Чтобы камера появилась, подайте заявление на размещение — остальное платформа подскажет по шагам.</p>
+      <div class="row" style="margin-top:6px"><button class="btn pri" data-act="nav" data-v="new">${hasDraft ? `Продолжить черновик (${S.draft.items.length} кам.)` : '+ Разместить камеры'}</button><button class="btn" data-act="nav" data-v="help">Как это устроено</button></div>
+    </div></section>
+    <section class="card"><div class="card-h"><h3>Что будет дальше</h3><span class="muted">от вас — заявление, данные после монтажа и один раз подпись соглашения</span></div><div class="card-b"><ol class="wsteps">
+      ${step(1, 'Вы: заявление на размещение', 'сейчас · 10–15 минут', 'Точки на карте, направление обзора, назначение, фото места. Модель и пароли пока не нужны.')}
+      ${step(2, 'ДРБ: решение по каждой камере', 'до 10 рабочих дней', 'Одобрит, вернёт на доработку с понятной причиной или откажет. Уведомление придёт сюда.')}
+      ${step(3, 'Вы: монтаж и данные для ЕСВ', 'в течение 6 месяцев после одобрения', 'Модель, IP-адрес, RTSP-ссылка с паролем, кто обслуживает камеру. Задача появится на главной.')}
+      ${step(4, '«Ресурсы Ямала»: соглашение и подключение', 'до 5 рабочих дней', 'С первой камерой подготовят соглашение — его подписывает ваша организация, один раз. Затем проверят поток и канал и добавят камеру в ЕСВ.')}
+    </ol></div></section>
+    <div class="callout info">Камеры организации, которые уже подключены к ЕСВ до запуска платформы, переносятся в реестр автоматически и появятся здесь с пометкой «импортирована из ЕСВ» — их останется только дозаполнить. Изменить или вывести камеру можно из её карточки, когда она появится в реестре.</div>`;
+}
 function pageHome() {
   const org = ROLES.owner.org, own = S.cameras.filter(c => c.org === org);
+  if (!own.length && !S.apps.some(a => a.org === org)) return pageWelcome(org);
   const cnt = k => own.filter(c => derived(c) === k).length;
   const inWork = S.apps.filter(a => a.org === org && ['submitted','security','review'].includes(a.status)).length;
   const tasks = ownerTasks();
@@ -1668,7 +1679,7 @@ function pageHome() {
     <div class="two">
       <div style="display:grid;gap:18px">
       <section class="card"><div class="card-h"><h3>Требует действия</h3><span class="muted">${tasks.length} задач</span></div>
-        <div class="tasks">${tasks.length ? tasks.map(t => `<div class="task"><div class="bar ${t.k}"></div><div><b>${esc(t.title)}</b><p>${esc(t.text)}</p></div><button class="btn${t.k === 'warn' || t.k === 'accent' ? ' pri' : ''} sm" data-act="${t.act}" data-v="${t.v}">${esc(t.btn)}</button></div>`).join('') : '<div class="empty">Всё сделано — задач нет</div>'}</div>
+        <div class="tasks">${tasks.length ? tasks.map(t => `<div class="task"><div class="bar ${t.k}"></div><div><b>${esc(t.title)}</b><p>${esc(t.text)}</p></div><button class="btn${t.k === 'warn' || t.k === 'accent' ? ' pri' : ''} sm" data-act="${t.act}" data-v="${t.v}">${esc(t.btn)}</button></div>`).join('') : `<div class="empty">${own.some(c => journey(c) && journey(c).cur.st === 'cur') ? 'От вас сейчас ничего не нужно — камеры у других участников, см. «Камеры в пути к ЕСВ»' : 'Задач нет'}</div>`}</div>
       </section>
       <section class="card"><div class="card-h"><h3>Камеры в пути к ЕСВ</h3><span class="muted">где сейчас и кто отвечает</span></div>
         <div class="tbl-wrap"><table><tbody>${own.filter(c => journey(c) && journey(c).cur.st === 'cur').map(c => { const j = journey(c); return `<tr class="click" data-act="cam" data-v="${c.id}"><td class="num">${c.num}</td><td>${esc(c.name)}<div class="faint" style="font-size:12px">${esc(j.cur.t)} · ${esc(j.cur.who)}</div></td><td style="text-align:right">${j.cur.due ? slaTag(j.cur.due) : ''}</td></tr>`; }).join('') || '<tr><td class="empty">Все камеры в ЕСВ</td></tr>'}</tbody></table></div>
@@ -1701,6 +1712,7 @@ function sortedList(list) {
 }
 function pageRegistry() {
   const {cams, list} = regList();
+  if (S.role === 'owner' && !cams.length) return `<section class="card"><div class="card-b empty-cta"><b>В реестре пока нет камер ${esc(ORGS[ROLES.owner.org].short)}</b><p class="muted">Камера появляется здесь сразу после подачи заявления на размещение — со статусом «Кандидат» — и дальше проходит путь до ЕСВ.</p><button class="btn pri" data-act="nav" data-v="new">+ Разместить камеры</button></div></section>`;
   const counts = {all: cams.length, review: cams.filter(inReview).length}; for (const k of Object.keys(DERIVED)) counts[k] = cams.filter(c => derived(c) === k).length;
   const sel = UI.camId;
   const bar = `<div class="row">
@@ -1786,7 +1798,7 @@ function renderDrawer() {
   const vc = S.viewChecks.find(v => v.camId === c.id);
   const inc = S.incidents.find(i => i.camId === c.id && i.status === 'open');
   const acts = [];
-  if (own && ['permitted'].includes(c.place)) acts.push(`<button class="btn pri" data-act="install" data-v="${c.id}">Монтаж и данные для ЕСВ</button>`);
+  if (own && ['permitted'].includes(c.place)) acts.push(`<button class="btn pri" data-act="install" data-v="${c.id}">Внести данные после монтажа</button>`);
   if (own && c.place === 'installed' && (c.needsPassport || (c.passport && !c.passport.accepted))) acts.push(`<button class="btn pri" data-act="install" data-v="${c.id}">${c.needsPassport ? 'Дозаполнить данные для ЕСВ' : 'Исправить данные для ЕСВ'}</button>`);
   if (c.place === 'installed') acts.push(`<button class="btn" data-act="passdoc" data-v="${c.id}">Паспорт СВН (прил. № 1)</button>`);
   if (own && c.place === 'installed' && !c.retireApproved) acts.push(`<button class="btn" data-act="change" data-v="${c.id}">Заявление на изменение</button>`);
@@ -1885,7 +1897,7 @@ function closeCam() { UI.camId = null; $('#layer').innerHTML = ''; if (UI.page =
 /* ----- Владелец: заявления ----- */
 function appsTable(apps, showOrg) {
   return `<div class="tbl-wrap"><table><thead><tr><th>Номер</th><th>Вид</th>${showOrg ? '<th>Организация</th>' : ''}<th>Камер</th><th>Подано</th><th>Статус</th><th>Срок</th></tr></thead><tbody>
-    ${apps.map(a => `<tr class="click" data-act="app" data-v="${a.id}"><td class="num">${a.id}</td><td>${KIND[a.kind]}</td>${showOrg ? `<td>${esc(ORGS[a.org].short)}</td>` : ''}<td class="num">${a.items.length}</td><td>${fmtD(a.submittedAt)}</td><td>${pill(...APP_ST[a.status])}</td><td>${slaPill(a)}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">Заявлений нет</td></tr>`}
+    ${apps.map(a => `<tr class="click" data-act="app" data-v="${a.id}"><td class="num">${a.id}</td><td>${KIND[a.kind]}</td>${showOrg ? `<td>${esc(ORGS[a.org].short)}</td>` : ''}<td class="num">${a.items.length}</td><td>${fmtD(a.submittedAt)}</td><td>${pill(...APP_ST[a.status])}</td><td>${slaPill(a)}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">Заявлений нет${S.role === 'owner' ? ' — <a href="#" data-act="nav" data-v="new">разместить камеры</a>' : ''}</td></tr>`}
   </tbody></table></div>`;
 }
 function pageApps() {
@@ -1996,7 +2008,7 @@ function pageApp() {
         return `<div class="secr ${s ? (s.result === 'pos' ? 'p' : 'n') : ''}"><b>${t}</b><span>${s ? (s.result === 'pos' ? 'Согласовано' : 'Не согласовано') + ' · ' + fmtD(s.date) : 'Ожидается ответ'}</span>${!s && canAdd ? `<button class="btn sm" data-act="sec" data-v="${idx}" data-ag="${k}">Внести ответ</button>` : '<span></span>'}</div>`;
       }).join('')}</div></div>` : '';
     return `<div class="pos${UI.focusItem === idx ? ' focus' : ''}">
-      <div class="pos-h"><span class="num">${c.num}</span><b>${esc(c.name)}</b><span class="grow"></span>${dec ? pill(...{approve: ['Одобрено','ok'], rework: ['На доработку','warn'], refuse: ['Отказано','bad'], withdrawn: ['Отозвана заявителем','mute']}[dec.outcome]) : pill('Ожидает решения','info')}<button class="btn sm" data-act="focusitem" data-v="${idx}">На карте</button></div>
+      <div class="pos-h"><span class="posn">${idx + 1}</span><span class="num">${c.num}</span><b>${esc(c.name)}</b><span class="grow"></span>${dec ? pill(...{approve: ['Одобрено','ok'], rework: ['На доработку','warn'], refuse: ['Отказано','bad'], withdrawn: ['Отозвана заявителем','mute']}[dec.outcome]) : pill('Ожидает решения','info')}<button class="btn sm" data-act="focusitem" data-v="${idx}">На карте</button></div>
       <div class="pos-b"><img alt="Эталонный кадр ${c.num}" src="${frameOf(c)}">
         <div><div class="muted" style="font-size:13px">${esc(c.address)} · ${CLS[c.cls]} · ${esc(c.purpose)} · азимут ${c.az}°, угол ${c.fov}°</div>
           ${it.change ? `<div class="callout ${dec && dec.outcome === 'approve' ? 'ok' : 'info'}" style="margin-top:8px;font-size:12.5px"><b>${dec && dec.outcome === 'approve' ? 'Изменено' : 'Просят изменить'}:</b> ${esc(changeText(it.change))}${c.esvId && !dec ? '<br>После одобрения платформа сама обновит запись в ЕСВ.' : ''}${a.reason ? '<br>Причина: ' + esc(a.reason) : ''}</div>` : ''}
@@ -2013,7 +2025,7 @@ function pageApp() {
     </div>`;
   }).join('');
   return `${head}<div class="split eq"><div style="display:grid;gap:12px">${pos}</div>
-    <div style="position:sticky;top:90px">${mapHTML('app-' + a.id, {cams: [...others, ...cams], selId: cams[UI.focusItem] ? cams[UI.focusItem].id : null, focus})}</div></div>`;
+    <div style="position:sticky;top:90px">${mapHTML('app-' + a.id, {cams: others, drafts: cams, draftSel: UI.focusItem, focus})}</div></div>`;
 }
 
 
@@ -2043,7 +2055,7 @@ function pageHelp() {
   ${box('owner', 'Владелец камеры (МО, ЕДДС, учреждение)', `
     <h4>1. Подать заявление на размещение</h4>
     <ol>
-      <li>«+ Подать заявление» в шапке → «Размещение новых камер» → кликните по карте в месте установки. Каждый клик — новая камера (до 50 в заявлении).</li>
+      <li>«+ Разместить камеры» в шапке → кликните по карте в месте установки. Каждый клик — новая камера (до 50 в заявлении).</li>
       <li><b>Лишнюю точку</b> удалите крестиком на вкладке позиции. «Удалить пустые» уберёт все случайные клики сразу: позиции без названия и кадра. Удаление можно отменить кнопкой «Вернуть».</li>
       <li><b>Адрес</b> подставляется сам по адресному плану ЕКС: адрес здания, в контуре которого стоит точка, или ближайшего здания в пределах 150 м, с кодом ФИАС. Если рядом нет зданий, указывается ориентир.</li>
       <li><b>Неточную точку</b> перетащите мышью. Направление и ширину обзора задайте ползунками — сектор сразу виден на карте рядом с чужими камерами.</li>
@@ -2066,8 +2078,8 @@ function pageHelp() {
     <h4>4. Эксплуатация</h4>
     <ul>
       <li>Камера недоступна — заявка автоматически уходит тому, кто обслуживает камеру: своей службе или исполнителю по контракту. Вы видите её на главной.</li>
-      <li>Нужно повернуть камеру, переименовать её или сменить назначение — «+ Подать заявление» → «Изменение камеры» (или кнопка в карточке камеры). После одобрения ДРБ запись в ЕСВ обновится сама.</li>
-      <li>Камера больше не нужна — «+ Подать заявление» → «Вывод камеры» (или кнопка в карточке). Подписчики узнают об этом сразу, отключит РЯ после одобрения ДРБ.</li>
+      <li>Нужно повернуть камеру, переименовать её или сменить назначение — откройте камеру в реестре → «Заявление на изменение». После одобрения ДРБ запись в ЕСВ обновится сама.</li>
+      <li>Камера больше не нужна — откройте камеру → «Подать заявление на вывод». Подписчики узнают об этом сразу, отключит РЯ после одобрения ДРБ.</li>
     </ul>`)}
 
   ${box('drb', 'ДРБ ЯНАО — согласование и контроль', `
@@ -2101,6 +2113,7 @@ function pageHelp() {
 
   <section class="card"><div class="card-b"><h2>Как пользоваться прототипом</h2><ul>
     <li>Слева переключаются рабочие места: владелец, ДРБ, «Ресурсы Ямала». Пройдите одну камеру по всем этапам, переключаясь между ними.</li>
+    <li>У владельца под рабочим местом выбирается организация: ЕДДС — камеры уже есть, СОШ № 1 — новая организация, которая зашла впервые и ещё не имеет ни камер, ни соглашения.</li>
     <li>Данные хранятся только в вашем браузере. «Сбросить демо-данные» внизу слева возвращает исходное состояние.</li>
     <li>«Журнал» → «Вызовы API» показывает, какие запросы уходят на сервер и что он отвечает, включая отказы (403, 409, 422).</li>
     <li>В «Неисправностях» у РЯ можно смоделировать отказ камеры и посмотреть, как уходит заявка исполнителю техобслуживания.</li>
@@ -2286,9 +2299,9 @@ function mInstall(id) {
   window._factFrame = null;
   const c = cam(id), p = c.passport || {}, sec = c.secret || {};
   const groups = [...new Set([`${ORGS[c.org].mask} · ${c.purpose}`, `${ORGS[c.org].mask} · Перекрёстки`, `${ORGS[c.org].mask} · Социальные объекты`, `${ORGS[c.org].mask} · Транспорт`, c.group].filter(Boolean))];
-  modal(`Данные для подключения к ЕСВ · ${c.num}`, `
+  modal(`Данные после монтажа · ${c.num}`, `
     <div class="muted">${esc(c.name)} · ${esc(c.address)}</div>
-    <div class="callout info" style="font-size:12.5px"><b>Этап 2.</b> Минимум ЕСВ (название, RTSP, координаты, район, группа) и наш минимум для добавления. Координаты, район и адрес уже есть из заявления.</div>
+    <div class="callout info" style="font-size:12.5px">Камера смонтирована — внесите данные, без которых её нельзя подключить к ЕСВ. Координаты и адрес уже есть из заявления, канал связи укажут «Ресурсы Ямала».</div>
     <div class="grid2"><label class="fld"><span>Модель (справочник)</span><select id="f-model"><option value="">— выберите —</option>${[...Object.entries(MODELS), ...Object.entries(S.customModels).filter(([, m]) => m.status === 'approved' || m.org === c.org)].map(([k, m]) => `<option value="${k}"${p.model === k ? ' selected' : ''}>${esc(m.name)}${m.ptz ? ' — PTZ' : ''}${m.custom && m.status === 'pending' ? ' (на проверке)' : ''}</option>`).join('')}<option value="__new">+ Другая модель — нет в справочнике</option></select></label>
     <label class="fld"><span>Дата установки</span><input type="date" id="f-date" value="${p.installDate || dOnly(S.clock)}"></label></div>
     <div id="newmodel" class="newmodel" hidden>
@@ -2317,11 +2330,8 @@ function mInstall(id) {
     </details>
     <label class="fld"><span>Дополнительная информация (необязательно)</span><textarea id="f-info">${esc(c.info || '')}</textarea></label>
     ${supportFields(c)}
-    <div class="sec-t" style="margin:4px 0 0">Логин и пароль — только если их нет в RTSP-ссылке</div>
-    <div class="grid2"><label class="fld"><span>Имя пользователя</span><input type="text" id="f-user" autocomplete="off" placeholder="${sec.given ? 'переданы ' + fmtD(sec.date) + ' — можно не менять' : ''}"></label>
-    <label class="fld"><span>Пароль</span><input type="password" id="f-pass" autocomplete="new-password"></label></div>
-    <div class="grid2" id="ptzbox"${M(c) && M(c).ptz ? '' : ' hidden'}><label class="fld"><span>Имя PTZ-пользователя (только для поворотных)</span><input type="text" id="f-puser" autocomplete="off" placeholder="${sec.ptz ? 'переданы' : ''}"></label>
-    <label class="fld"><span>Пароль PTZ-пользователя</span><input type="password" id="f-ppass" autocomplete="new-password"></label></div>
+    <div class="grid2" id="ptzbox"${M(c) && M(c).ptz ? '' : ' hidden'}><label class="fld"><span>Логин для управления поворотом (PTZ)</span><input type="text" id="f-puser" autocomplete="off" placeholder="${sec.ptz ? 'переданы' : ''}"></label>
+    <label class="fld"><span>Пароль для управления поворотом (PTZ)</span><input type="password" id="f-ppass" autocomplete="new-password"></label></div>
     <div class="faint" style="font-size:12px">После сохранения пароль из ссылки шифруется и скрывается: в карточке ссылка показывается как rtsp://логин:••••@… Принимается любая RTSP-ссылка; если пароль похож на заводской, система только предупредит. Глубина архива единая для всех камер ЕСВ (${ESV_ARCHIVE_DAYS} суток) и не вводится.</div>`,
     `<button class="btn" data-act="mclose">Отмена</button><button class="btn pri" data-act="m-install" data-v="${c.id}">Сохранить и проверить</button>`);
 }
@@ -2483,14 +2493,13 @@ function mKT2(id, verdict) {
 /* ---------- события ---------- */
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
-  if (UI.newMenu && !(el && el.dataset.act === 'newmenu')) { UI.newMenu = false; const pop = $('.newpop'); if (pop) pop.remove(); const nb = $('[data-act=newmenu]'); if (nb) nb.setAttribute('aria-expanded', 'false'); }
   if (!el) { if (UI.bell && !e.target.closest('.bellpop')) { UI.bell = false; render(); } return; }
   const act = el.dataset.act, v = el.dataset.v;
   if (el.tagName === 'A') e.preventDefault();
   switch (act) {
     case 'role': S.role = v; UI.page = NAV[v][0][0]; UI.bell = false; UI.camId = null; $('#layer').innerHTML = ''; save(); render(); break;
     case 'nav': if (v !== UI.page) { if (v === 'apps') UI.appsFilter = 'all'; if (v === 'queue') UI.queueFilter = 'all'; } UI.page = v; UI.bell = false; if (v === 'new' && S.draft && S.draft.appId && !S.draft.items.length) S.draft = null; render(); window.scrollTo(0, 0); break;
-    case 'reset': if (el.dataset.confirm) { try { localStorage.removeItem(STORE_KEY); } catch (x) {} seed(); save(); for (const k in VIEWS) delete VIEWS[k]; UI.page = 'home'; UI.camId = null; $('#layer').innerHTML = ''; render(); toast('Демо-данные сброшены'); } else { el.dataset.confirm = '1'; el.textContent = 'Нажмите ещё раз для сброса'; setTimeout(() => { if (el.isConnected) { delete el.dataset.confirm; el.textContent = 'Сбросить демо-данные'; } }, 3000); } break;
+    case 'reset': if (el.dataset.confirm) { try { localStorage.removeItem(STORE_KEY); } catch (x) {} seed(); save(); for (const k in VIEWS) delete VIEWS[k]; setOwnerOrg(S.ownerOrg); UI.page = 'home'; UI.camId = null; $('#layer').innerHTML = ''; render(); toast('Демо-данные сброшены'); } else { el.dataset.confirm = '1'; el.textContent = 'Нажмите ещё раз для сброса'; setTimeout(() => { if (el.isConnected) { delete el.dataset.confirm; el.textContent = 'Сбросить демо-данные'; } }, 3000); } break;
     case 'bell': UI.bell = !UI.bell; if (!UI.bell) { myNotes().forEach(n => n.read = true); save(); } render(); break;
     case 'note': { const n = S.notes.find(x => x.id === v); n.read = true; UI.bell = false; save(); if (n.link) { if (n.link.cam) { render(); openCam(n.link.cam); } else { UI.page = n.link.page; if (n.link.id) UI.appId = n.link.id; UI.focusItem = 0; render(); } } else render(); break; }
     case 'cam': openCam(v); if (UI.page === 'registry') { $$('tr.sel').forEach(r => r.classList.remove('sel')); el.closest('tr')?.classList.add('sel'); } break;
@@ -2520,9 +2529,6 @@ document.addEventListener('click', e => {
     case 'rework': closeCam(); startRework(v); break;
     case 'install': mInstall(v); break;
     case 'retire': mRetire(v); break;
-    case 'newmenu': UI.newMenu = !UI.newMenu; UI.bell = false; render(); break;
-    case 'pick': mPick(v); break;
-    case 'pickcam': closeModal(); if (el.dataset.k === 'change') mChange(v); else mRetire(v); break;
     case 'change': mChange(v); break;
     case 'withdraw': mWithdraw(v, el.dataset.i != null ? +el.dataset.i : null); break;
     case 'm-withdraw': { const idx = el.dataset.i != null ? +el.dataset.i : null, a0 = appById(v); const a = call('POST', idx == null ? `/api/v1/applications/${v}/withdraw` : `/api/v1/applications/${v}/items/${cam(a0.items[idx].camId).num}/withdraw`, () => API.withdraw(v, idx)); if (a) { toast(idx == null ? `Заявление ${a.id} отозвано` : 'Позиция отозвана'); afterChange(); } break; }
@@ -2569,7 +2575,7 @@ document.addEventListener('click', e => {
     case 'm-install': {
       const c = cam(v);
       const val = id => $('#' + id).value;
-      const r = call('POST', `/api/v1/cameras/${c.num}/esv-data`, () => API.install(v, {model: val('f-model'), newModel: {vendor: val('f-nvendor').trim(), name: val('f-nname').trim(), type: val('f-ntype'), spec: !!($('#f-nspec').files && $('#f-nspec').files.length)}, esvType: val('f-etype'), factFrame: window._factFrame || null, installDate: val('f-date'), ip: val('f-ip').trim(), rtsp: val('f-rtsp').trim(), factAz: +val('f-az'), factFov: +val('f-fov'), group: val('f-group'), descr: val('f-descr'), info: val('f-info'), pass: {serial: val('f-serial').trim(), fw: val('f-fw').trim(), height: val('f-height') === '' ? null : +val('f-height'), placeDescr: val('f-place').trim(), azErr: $('#f-azerr') ? +val('f-azerr') : null, telem: !!($('#f-telem') && $('#f-telem').checked)}, support: val('f-support'), newSupport: {name: val('f-sname').trim(), contact: val('f-scontact').trim(), contract: val('f-scontract').trim()}, user: val('f-user'), password: val('f-pass'), ptzUser: val('f-puser'), ptzPassword: val('f-ppass')}));
+      const r = call('POST', `/api/v1/cameras/${c.num}/esv-data`, () => API.install(v, {model: val('f-model'), newModel: {vendor: val('f-nvendor').trim(), name: val('f-nname').trim(), type: val('f-ntype'), spec: !!($('#f-nspec').files && $('#f-nspec').files.length)}, esvType: val('f-etype'), factFrame: window._factFrame || null, installDate: val('f-date'), ip: val('f-ip').trim(), rtsp: val('f-rtsp').trim(), factAz: +val('f-az'), factFov: +val('f-fov'), group: val('f-group'), descr: val('f-descr'), info: val('f-info'), pass: {serial: val('f-serial').trim(), fw: val('f-fw').trim(), height: val('f-height') === '' ? null : +val('f-height'), placeDescr: val('f-place').trim(), azErr: $('#f-azerr') ? +val('f-azerr') : null, telem: !!($('#f-telem') && $('#f-telem').checked)}, support: val('f-support'), newSupport: {name: val('f-sname').trim(), contact: val('f-scontact').trim(), contract: val('f-scontract').trim()}, user: '', password: '', ptzUser: val('f-puser'), ptzPassword: val('f-ppass')}));
       window._factFrame = null;
       if (r) { toast(r.ready ? `${c.num}: данные для ЕСВ приняты — камера передана РЯ на подключение` : r.pendingModel ? `${c.num}: данные сохранены, новая модель отправлена на проверку в РЯ` : `${c.num}: ${r.accepted ? 'не хватает данных: ' + r.missing.join(', ') : 'модель не прошла проверку'}`, r.ready || r.pendingModel ? 'ok' : 'bad'); afterChange(); }
       break; }
@@ -2596,7 +2602,6 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('input', e => {
   const t = e.target;
-  if (t.id === 'f-pick') { const q = t.value.trim().toLowerCase(); $$('.pick-list [data-s]').forEach(b => b.hidden = !!q && !b.dataset.s.includes(q)); return; }
   if (t.id === 'regSearch') { UI.regSearch = t.value; const pos = t.selectionStart; render(); const s = $('#regSearch'); s.focus(); s.setSelectionRange(pos, pos); return; }
   if (t.dataset.wiz && S.draft) {
     const it = S.draft.items[UI.wizSel]; const k = t.dataset.wiz;
@@ -2612,6 +2617,7 @@ document.addEventListener('change', e => {
   if (t.id === 'f-ctlover') { UI.ctlOver = t.checked; render(); return; }
   if (t.id === 'f-recok') { UI.recOk = UI.recOk || {}; UI.recOk[t.dataset.v] = t.checked; reopenEsv(t.dataset.v); return; }
   if (t.id === 'f-lmode') { const b = $('#lopbox'); if (b) b.hidden = t.value !== 'vpn'; return; }
+  if (t.id === 'f-ownerorg') { S.ownerOrg = t.value; setOwnerOrg(t.value); UI.page = 'home'; UI.camId = null; $('#layer').innerHTML = ''; for (const k in VIEWS) delete VIEWS[k]; save(); render(); return; }
   if (t.id === 'f-support') { const b = $('#newsup'); if (b) b.hidden = t.value !== '__new'; return; }
   if (t.id === 'f-ag') { const b = $('#newag'); if (b) b.hidden = t.value !== '__new'; return; }
   if (t.id === 'f-fact' && t.files && t.files[0]) {
@@ -2643,10 +2649,11 @@ document.addEventListener('change', e => {
     rd.readAsDataURL(f);
   }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (UI.newMenu) { UI.newMenu = false; render(); } else if ($('.modal')) closeModal(); else if (UI.camId) closeCam(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('.modal')) closeModal(); else if (UI.camId) closeCam(); } });
 
 /* ---------- запуск ---------- */
 S = load();
 if (!S) { seed(); save(); }
+setOwnerOrg(S.ownerOrg);
 render();
 </script>
