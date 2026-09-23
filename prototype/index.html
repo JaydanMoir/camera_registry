@@ -427,11 +427,29 @@ const toLatLon = (x, y) => unmerc(MAP.X0 + x * MAP.k, MAP.Y0 - y * MAP.k);
 const worldOf = (lat, lon) => { const [X, Y] = merc(lat, lon); return [(X - MAP.X0) / MAP.k, (MAP.Y0 - Y) / MAP.k]; };
 const CITY_VIEW = {x: 0, y: 30, w: 1200, h: 780};
 const REGION_VIEW = (() => { const [x1, y1] = worldOf(73.4, 60.2), [x2, y2] = worldOf(62.9, 85.3); return {x: x1, y: y1, w: x2 - x1, h: y2 - y1}; })();
+/* Подложка берётся живьём из TileServer ЕКС (как TileLayer в Leaflet/folium): весь ЯНАО, уровни до 19.
+   Если map.yanao.ru недоступен (зарубежный IP, ограничения страницы) — встроенная копия TILES. */
+const EKC_TILE = 'https://map.yanao.ru/elitegis/rest/services/common/basemap/MapServer/tile/';
+const TILE_SRC = {live: null};
+const tileSrc = key => { if (!TILE_SRC.live) return TILES[key]; const [z, x, y] = key.split('/'); return EKC_TILE + z + '/' + y + '/' + x; };
+(() => {
+  const probe = new Image(), key = Object.keys(TILES).find(k => k.startsWith('8/'));
+  const done = ok => {
+    if (TILE_SRC.live !== null) return; TILE_SRC.live = ok;
+    document.querySelectorAll('.map-attr').forEach(a => a.textContent = attrText());
+    if (!ok) return;
+    document.querySelectorAll('.map svg').forEach(svg => { const g = svg.querySelector('g.tl'); if (!g) return; g.textContent = ''; g._tiles = null; updateTiles(svg, VIEWS[svg.parentNode.dataset.map]); });
+  };
+  const [z, x, y] = key.split('/');
+  probe.onload = () => done(true); probe.onerror = () => done(false); setTimeout(() => done(false), 6000);
+  probe.src = EKC_TILE + z + '/' + y + '/' + x;
+})();
+const attrText = () => 'Подложка: ЕКС ЯНАО' + (TILE_SRC.live === false ? ' · встроенная копия' : TILE_SRC.live ? ' · онлайн' : '');
 /* тайловый слой: выбирает уровень по масштабу, ниже подкладывает обзорный уровень ЯНАО */
 function tileKeys(v, pxW, pxH) {
   const upp = Math.min(v.w / Math.max(pxW, 1), v.h / Math.max(pxH, 1));
   let z = Math.round(Math.log2(156543.03392804097 / (upp * MAP.k)));
-  z = Math.max(4, Math.min(16, z));
+  z = Math.max(4, Math.min(TILE_SRC.live ? 19 : 16, z));
   const res = [];
   const add = zz => {
     const size = 2 * MR / 2 ** zz;
@@ -439,14 +457,14 @@ function tileKeys(v, pxW, pxH) {
     const y1 = Math.floor((MR - (MAP.Y0 - v.y * MAP.k)) / size), y2 = Math.floor((MR - (MAP.Y0 - (v.y + v.h) * MAP.k)) / size);
     if ((x2 - x1 + 1) * (y2 - y1 + 1) > 600) return;
     for (let x = x1; x <= x2; x++) for (let y = y1; y <= y2; y++) {
-      const key = zz + '/' + x + '/' + y; if (!TILES[key]) continue;
+      const key = zz + '/' + x + '/' + y; if (!TILES[key] && !(TILE_SRC.live && zz > 8)) continue;
       res.push({key, x: (x * size - MR - MAP.X0) / MAP.k, y: (MAP.Y0 - (MR - y * size)) / MAP.k, s: size / MAP.k});
     }
   };
   add(Math.min(z, 8)); if (z > 8) add(z);
   return res;
 }
-function tilesSVG(v, pxW, pxH) { return tileKeys(v, pxW, pxH).map(t => `<image href="${TILES[t.key]}" x="${t.x}" y="${t.y}" width="${t.s + .6}" height="${t.s + .6}" preserveAspectRatio="none"/>`).join(''); }
+function tilesSVG(v, pxW, pxH) { return tileKeys(v, pxW, pxH).map(t => `<image href="${tileSrc(t.key)}" x="${t.x}" y="${t.y}" width="${t.s + .6}" height="${t.s + .6}" preserveAspectRatio="none"/>`).join(''); }
 function updateTiles(svg, v) {
   const g = svg.querySelector('g.tl'); if (!g) return;
   const need = tileKeys(v, svg.clientWidth, svg.clientHeight), want = new Set(need.map(t => t.key));
@@ -454,7 +472,8 @@ function updateTiles(svg, v) {
   for (const [k, node] of have) if (!want.has(k)) { node.remove(); have.delete(k); }
   for (const t of need) if (!have.has(t.key)) {
     const im = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-    im.setAttribute('href', TILES[t.key]); im.setAttribute('x', t.x); im.setAttribute('y', t.y); im.setAttribute('width', t.s + .6); im.setAttribute('height', t.s + .6); im.setAttribute('preserveAspectRatio', 'none');
+    im.setAttribute('href', tileSrc(t.key)); if (TILE_SRC.live) im.addEventListener('error', () => { if (TILES[t.key]) im.setAttribute('href', TILES[t.key]); else im.remove(); }, {once: true});
+    im.setAttribute('x', t.x); im.setAttribute('y', t.y); im.setAttribute('width', t.s + .6); im.setAttribute('height', t.s + .6); im.setAttribute('preserveAspectRatio', 'none');
     if (+t.key.split('/')[0] > 8) g.appendChild(im); else g.insertBefore(im, g.firstChild);
     have.set(t.key, im);
   }
@@ -1289,7 +1308,7 @@ function mapHTML(key, {cams, selId = null, drafts = [], draftSel = -1, focus = n
   return `<div class="map${placing ? ' placing' : ''}" data-map="${key}">
     <svg viewBox="${v.x} ${v.y} ${v.w} ${v.h}" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Карта ЕКС ЯНАО с камерами и секторами обзора"><rect x="-300000" y="-400000" width="1200000" height="1200000" fill="var(--land)"/><g class="tl"></g><g>${sec}</g><g>${pts}</g></svg>
     <div class="map-zoom"><button data-zoom="in" aria-label="Приблизить">+</button><button data-zoom="out" aria-label="Отдалить">−</button><button data-zoom="reset" aria-label="Ноябрьск" title="Ноябрьск" style="font-size:12px">⤢</button><button data-zoom="region" aria-label="Весь ЯНАО" title="Весь ЯНАО" style="font-size:10px">ЯНАО</button></div>
-    <div class="map-attr">Подложка: ЕКС ЯНАО</div>
+    <div class="map-attr">${attrText()}</div>
     ${hint ? `<div class="map-hint">${esc(hint)}</div>` : ''}
     <div class="map-legend">${legend}</div></div>`;
 }
@@ -1302,7 +1321,7 @@ function attachMaps() {
     updateTiles(svg, VIEWS[key]);
     const toSvg = (cx, cy) => { const p = svg.createSVGPoint(); p.x = cx; p.y = cy; return p.matrixTransform(svg.getScreenCTM().inverse()); };
     const zoom = (f, cx, cy) => {
-      const v = VIEWS[key]; const nw = Math.min(REGION_VIEW.w * 1.4, Math.max(120, v.w * f)); const r = nw / v.w;
+      const v = VIEWS[key]; const nw = Math.min(REGION_VIEW.w * 1.4, Math.max(TILE_SRC.live ? 40 : 120, v.w * f)); const r = nw / v.w;
       const c = cx != null ? toSvg(cx, cy) : {x: v.x + v.w / 2, y: v.y + v.h / 2};
       v.x = c.x - (c.x - v.x) * r; v.y = c.y - (c.y - v.y) * r; v.w = nw; v.h = v.h * r; setVB();
     };
