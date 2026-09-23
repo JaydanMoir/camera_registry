@@ -79,7 +79,18 @@ button{cursor:pointer}
 .top .crumb{font-size:12px;color:var(--soft)}
 .top .sp{flex:1}
 .top-new{white-space:nowrap}
-.top-draft{font-weight:500;opacity:.8;font-size:12px;margin-left:4px}
+.newmenu{position:relative}
+.newpop{position:absolute;right:0;top:calc(100% + 8px);width:min(340px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;z-index:40;display:grid;gap:2px}
+.newpop button{display:grid;gap:2px;text-align:left;border:0;background:none;border-radius:8px;padding:10px 12px;font:inherit;color:var(--ink);cursor:pointer}
+.newpop button:hover,.newpop button:focus-visible{background:var(--surface-2)}
+.newpop b{font-size:13.5px}
+.newpop small{font-size:12px;color:var(--soft);line-height:1.4}
+.newpop .draft{color:var(--warn);font-weight:600}
+.pick-list{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.pick-list button{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:9px 12px;font:inherit;color:inherit;cursor:pointer}
+.pick-list button:last-child{border-bottom:0}
+.pick-list button:hover{background:var(--surface-2)}
+.pick-list small{grid-column:2;color:var(--soft);font-size:12px}
 .who{font-size:12.5px;color:var(--soft);text-align:right;line-height:1.3}
 .who b{color:var(--ink);font-weight:600;display:block}
 .bell{position:relative;border:1px solid var(--line);background:var(--surface);border-radius:10px;width:38px;height:38px;display:grid;place-items:center}
@@ -1543,7 +1554,7 @@ function startRework(appId) {
 
 /* ---------- отрисовка ---------- */
 const NAV = {
-  owner: [['home','Главная'],['registry','Реестр камер'],['apps','Мои заявления'],['new','Новое заявление'],['agreements','Соглашения с РЯ'],['journal','Журнал'],['help','Инструкция']],
+  owner: [['home','Главная'],['registry','Реестр камер'],['apps','Мои заявления'],['new','Размещение камер'],['agreements','Соглашения с РЯ'],['journal','Журнал'],['help','Инструкция']],
   drb: [['queue','Очередь заявлений'],['control','Контроль прохождения'],['registry','Реестр камер'],['kt2','Сверка ракурса'],['reports','Отчёты'],['journal','Журнал'],['help','Инструкция']],
   rya: [['connect','Подключение'],['faults','Неисправности'],['recon','Сверка с ЕСВ'],['registry','Реестр камер'],['journal','Журнал'],['help','Инструкция']],
 };
@@ -1570,7 +1581,7 @@ function render() {
   const role = S.role, nav = NAV[role];
   if (!nav.some(n => n[0] === UI.page) && !['app'].includes(UI.page)) UI.page = nav[0][0];
   const unread = myNotes().filter(n => !n.read).length;
-  const titles = {home: 'Главная', registry: 'Реестр камер', apps: 'Мои заявления', new: S.draft && S.draft.appId ? 'Доработка заявления ' + S.draft.appId : 'Новое заявление',
+  const titles = {home: 'Главная', registry: 'Реестр камер', apps: 'Мои заявления', new: S.draft && S.draft.appId ? 'Доработка заявления ' + S.draft.appId : 'Заявление на размещение камер',
     journal: 'Журнал действий и API', control: 'Контроль прохождения камер', agreements: 'Соглашения с «Ресурсами Ямала»', queue: 'Очередь заявлений', kt2: 'Сверка ракурса (КТ2)', reports: 'Отчёты', connect: 'Подключение к ЕСВ', faults: 'Неисправности', recon: 'Сверка реестра с ЕСВ', help: 'Инструкция: что, как и зачем', app: 'Заявление ' + (UI.appId || '')};
   const content = ({control: pageControl, agreements: pageAgreements, home: pageHome, registry: pageRegistry, apps: pageApps, new: pageNew, journal: pageJournal, queue: pageQueue, kt2: pageKT2, reports: pageReports, connect: pageConnect, faults: pageFaults, recon: pageRecon, help: pageHelp, app: pageApp})[UI.page]();
   $('#app').innerHTML = `<div class="app">
@@ -1594,7 +1605,7 @@ function render() {
       <header class="top">
         <div><div class="crumb">${esc(ROLES[role].title)} · ${esc(ROLES[role].sub)}</div><h1>${esc(titles[UI.page])}</h1></div>
         <div class="sp"></div>
-        ${role === 'owner' && UI.page !== 'new' ? `<button class="btn pri top-new" data-act="nav" data-v="new">+ Новое заявление${S.draft && S.draft.items.length && !S.draft.appId ? ` <span class="top-draft">черновик: ${S.draft.items.length}</span>` : ''}</button>` : ''}
+        ${role === 'owner' ? `<div class="newmenu"><button class="btn pri top-new" data-act="newmenu" aria-expanded="${UI.newMenu ? 'true' : 'false'}">+ Подать заявление <span aria-hidden="true">▾</span></button>${UI.newMenu ? newMenuHTML() : ''}</div>` : ''}
         <div class="who"><b>${esc(ROLES[role].actor)}</b>демо-пользователь</div>
         <button class="bell" data-act="bell" aria-label="Уведомления"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>${unread ? `<i>${unread}</i>` : ''}</button>
         ${UI.bell ? bellPop() : ''}
@@ -1603,6 +1614,23 @@ function render() {
     </main></div>`;
   attachMaps();
   if (UI.camId) renderDrawer();
+}
+function newMenuHTML() {
+  const dr = S.draft && S.draft.items.length && !S.draft.appId ? S.draft.items.length : 0;
+  return `<div class="newpop" role="menu">
+    <button role="menuitem" data-act="nav" data-v="new"><b>Размещение новых камер</b><small>Поставить точки на карте — до 50 камер в одном заявлении.${dr ? ` <span class="draft">Есть черновик: ${dr} кам.</span>` : ''}</small></button>
+    <button role="menuitem" data-act="pick" data-v="change"><b>Изменение камеры</b><small>Повернуть, переименовать, сменить назначение или класс смонтированной камеры.</small></button>
+    <button role="menuitem" data-act="pick" data-v="retire"><b>Вывод камеры</b><small>Камера демонтируется или больше не нужна — её отключат от ЕСВ и уберут в архив.</small></button>
+  </div>`;
+}
+function mPick(kind) {
+  const list = S.cameras.filter(c => c.org === ROLES.owner.org && c.place === 'installed' && !c.retireApproved);
+  modal(kind === 'change' ? 'Изменение камеры — выберите камеру' : 'Вывод камеры — выберите камеру',
+    `<label class="fld"><span>Поиск</span><input type="search" id="f-pick" placeholder="Номер, наименование или адрес" autocomplete="off"></label>
+     <div class="pick-list">${list.map(c => `<button data-act="pickcam" data-v="${c.id}" data-k="${kind}" data-s="${esc((c.num + ' ' + c.name + ' ' + c.address).toLowerCase())}"><span class="num">${c.num}</span><span>${esc(c.name)}</span><small>${esc(c.address)} · ${DERIVED[derived(c)][0]}</small></button>`).join('') || '<div class="empty">Смонтированных камер нет</div>'}</div>
+     <div class="faint" style="font-size:12px">В списке — смонтированные камеры вашей организации. Камеру, которую ещё не смонтировали, исправляют через доработку или отзыв заявления на размещение.</div>`,
+    `<button class="btn" data-act="mclose">Отмена</button>`);
+  setTimeout(() => { const f = $('#f-pick'); if (f) f.focus(); }, 0);
 }
 function bellPop() {
   const ns = myNotes().slice(0, 30);
@@ -2015,7 +2043,7 @@ function pageHelp() {
   ${box('owner', 'Владелец камеры (МО, ЕДДС, учреждение)', `
     <h4>1. Подать заявление на размещение</h4>
     <ol>
-      <li>«Новое заявление» → кликните по карте в месте установки. Каждый клик — новая камера (до 50 в заявлении).</li>
+      <li>«+ Подать заявление» в шапке → «Размещение новых камер» → кликните по карте в месте установки. Каждый клик — новая камера (до 50 в заявлении).</li>
       <li><b>Лишнюю точку</b> удалите крестиком на вкладке позиции. «Удалить пустые» уберёт все случайные клики сразу: позиции без названия и кадра. Удаление можно отменить кнопкой «Вернуть».</li>
       <li><b>Адрес</b> подставляется сам по адресному плану ЕКС: адрес здания, в контуре которого стоит точка, или ближайшего здания в пределах 150 м, с кодом ФИАС. Если рядом нет зданий, указывается ориентир.</li>
       <li><b>Неточную точку</b> перетащите мышью. Направление и ширину обзора задайте ползунками — сектор сразу виден на карте рядом с чужими камерами.</li>
@@ -2038,8 +2066,8 @@ function pageHelp() {
     <h4>4. Эксплуатация</h4>
     <ul>
       <li>Камера недоступна — заявка автоматически уходит тому, кто обслуживает камеру: своей службе или исполнителю по контракту. Вы видите её на главной.</li>
-      <li>Нужно повернуть камеру, переименовать её или сменить назначение — «Заявление на изменение» в карточке. После одобрения ДРБ запись в ЕСВ обновится сама.</li>
-      <li>Камера больше не нужна — «Подать заявление на вывод». Подписчики узнают об этом сразу, отключит РЯ после одобрения ДРБ.</li>
+      <li>Нужно повернуть камеру, переименовать её или сменить назначение — «+ Подать заявление» → «Изменение камеры» (или кнопка в карточке камеры). После одобрения ДРБ запись в ЕСВ обновится сама.</li>
+      <li>Камера больше не нужна — «+ Подать заявление» → «Вывод камеры» (или кнопка в карточке). Подписчики узнают об этом сразу, отключит РЯ после одобрения ДРБ.</li>
     </ul>`)}
 
   ${box('drb', 'ДРБ ЯНАО — согласование и контроль', `
@@ -2455,6 +2483,7 @@ function mKT2(id, verdict) {
 /* ---------- события ---------- */
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
+  if (UI.newMenu && !(el && el.dataset.act === 'newmenu')) { UI.newMenu = false; const pop = $('.newpop'); if (pop) pop.remove(); const nb = $('[data-act=newmenu]'); if (nb) nb.setAttribute('aria-expanded', 'false'); }
   if (!el) { if (UI.bell && !e.target.closest('.bellpop')) { UI.bell = false; render(); } return; }
   const act = el.dataset.act, v = el.dataset.v;
   if (el.tagName === 'A') e.preventDefault();
@@ -2491,6 +2520,9 @@ document.addEventListener('click', e => {
     case 'rework': closeCam(); startRework(v); break;
     case 'install': mInstall(v); break;
     case 'retire': mRetire(v); break;
+    case 'newmenu': UI.newMenu = !UI.newMenu; UI.bell = false; render(); break;
+    case 'pick': mPick(v); break;
+    case 'pickcam': closeModal(); if (el.dataset.k === 'change') mChange(v); else mRetire(v); break;
     case 'change': mChange(v); break;
     case 'withdraw': mWithdraw(v, el.dataset.i != null ? +el.dataset.i : null); break;
     case 'm-withdraw': { const idx = el.dataset.i != null ? +el.dataset.i : null, a0 = appById(v); const a = call('POST', idx == null ? `/api/v1/applications/${v}/withdraw` : `/api/v1/applications/${v}/items/${cam(a0.items[idx].camId).num}/withdraw`, () => API.withdraw(v, idx)); if (a) { toast(idx == null ? `Заявление ${a.id} отозвано` : 'Позиция отозвана'); afterChange(); } break; }
@@ -2564,6 +2596,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('input', e => {
   const t = e.target;
+  if (t.id === 'f-pick') { const q = t.value.trim().toLowerCase(); $$('.pick-list [data-s]').forEach(b => b.hidden = !!q && !b.dataset.s.includes(q)); return; }
   if (t.id === 'regSearch') { UI.regSearch = t.value; const pos = t.selectionStart; render(); const s = $('#regSearch'); s.focus(); s.setSelectionRange(pos, pos); return; }
   if (t.dataset.wiz && S.draft) {
     const it = S.draft.items[UI.wizSel]; const k = t.dataset.wiz;
@@ -2610,7 +2643,7 @@ document.addEventListener('change', e => {
     rd.readAsDataURL(f);
   }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('.modal')) closeModal(); else if (UI.camId) closeCam(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (UI.newMenu) { UI.newMenu = false; render(); } else if ($('.modal')) closeModal(); else if (UI.camId) closeCam(); } });
 
 /* ---------- запуск ---------- */
 S = load();
