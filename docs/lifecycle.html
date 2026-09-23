@@ -1,0 +1,395 @@
+<title>Жизненный цикл камеры</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#F3F6F5; --surface:#FFFFFF; --band:#EAF0EF;
+    --ink:#16242A; --soft:#55696F; --faint:#8CA0A3; --line:#D3DEDD;
+    --accent:#1F6F78; --accent-soft:#DCEFEF;
+    --ok:#2F8F6D; --ok-soft:#E1F3E9;
+    --warn:#9A7226; --warn-soft:#FBF3E1;
+    --bad:#B23A2E; --bad-soft:#FBE7E4;
+    --shadow:0 1px 2px rgba(22,36,42,.05), 0 10px 28px rgba(22,36,42,.06);
+    --f-display:"IBM Plex Sans Condensed","Arial Narrow","Segoe UI",sans-serif;
+    --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+    --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme:dark;
+      --bg:#11181B; --surface:#182226; --band:#152024;
+      --ink:#EAF1F1; --soft:#9DB0B2; --faint:#6E8285; --line:#2A393D;
+      --accent:#5FCBD1; --accent-soft:#1B3438;
+      --ok:#5CC49A; --ok-soft:#183329;
+      --warn:#E0B45F; --warn-soft:#2E2618;
+      --bad:#E57A6E; --bad-soft:#3A1F1C;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 28px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme:dark;
+    --bg:#11181B; --surface:#182226; --band:#152024;
+    --ink:#EAF1F1; --soft:#9DB0B2; --faint:#6E8285; --line:#2A393D;
+    --accent:#5FCBD1; --accent-soft:#1B3438;
+    --ok:#5CC49A; --ok-soft:#183329;
+    --warn:#E0B45F; --warn-soft:#2E2618;
+    --bad:#E57A6E; --bad-soft:#3A1F1C;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 28px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box;}
+  body{background:var(--bg); color:var(--ink); font-family:var(--f-body); font-size:15px; line-height:1.6;}
+  .wrap{max-width:960px; margin:0 auto; padding-inline:20px; padding-block:48px 72px;}
+
+  .eyebrow{font-family:var(--f-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); margin:0 0 10px;}
+  h1{font-family:var(--f-display); font-weight:700; font-size:clamp(28px,4.4vw,40px); line-height:1.1; text-wrap:balance; margin:0 0 14px;}
+  .dek{color:var(--soft); max-width:68ch; margin:0 0 36px;}
+  h2{font-family:var(--f-display); font-weight:700; font-size:25px; line-height:1.2; text-wrap:balance; margin:0 0 8px;}
+  h3{font-family:var(--f-display); font-weight:600; font-size:18px; line-height:1.3; margin:0 0 6px;}
+  .lead{color:var(--soft); max-width:68ch; margin:0 0 20px;}
+  code{font-family:var(--f-mono); font-size:.86em;}
+  section{margin:0 0 56px;}
+
+  /* entity split */
+  .split{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .ent{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px 22px;}
+  .ent .k{font-family:var(--f-mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin-bottom:6px;}
+  .ent p{margin:0 0 8px; color:var(--soft);}
+  .ent p:last-child{margin:0;}
+  .ent.main{border-color:var(--accent); box-shadow:var(--shadow);}
+
+  /* figures */
+  figure{margin:0; background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); padding:20px;}
+  .scroll{overflow-x:auto;}
+  svg.d{display:block; width:100%; height:auto;}
+  svg.d.a{min-width:700px;} svg.d.b{min-width:720px;}
+  figcaption{font-size:13px; color:var(--soft); margin-top:14px; max-width:84ch;}
+  .ttl{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.14em; fill:var(--accent);}
+  .n rect{fill:var(--surface); stroke:var(--line); stroke-width:1.5;}
+  .n.acc rect{fill:var(--accent-soft); stroke:var(--accent);}
+  .n.ok rect{fill:var(--ok-soft); stroke:var(--ok);}
+  .n.warn rect{fill:var(--warn-soft); stroke:var(--warn);}
+  .n.bad rect{fill:var(--bad-soft); stroke:var(--bad);}
+  .n .c{font-family:var(--f-mono); font-size:10.5px; fill:var(--soft); text-anchor:middle;}
+  .n .t{font-family:var(--f-body); font-size:12.5px; font-weight:500; fill:var(--ink); text-anchor:middle;}
+  .e{fill:none; stroke:var(--soft); stroke-width:1.4;}
+  .e.dep{stroke:var(--accent); stroke-dasharray:5 4;}
+  .ah{fill:var(--soft);} .ah.acc{fill:var(--accent);}
+  .el{font-family:var(--f-body); font-size:10.5px; fill:var(--soft);}
+  .el.acc{fill:var(--accent);}
+  .el.mid{text-anchor:middle;} .el.end{text-anchor:end;}
+  .lane{font-family:var(--f-body); font-size:11.5px; font-weight:500; fill:var(--soft);}
+  .s{stroke-width:1.2;}
+  .s.plain{fill:var(--surface); stroke:var(--line);}
+  .s.acc{fill:var(--accent-soft); stroke:var(--accent);}
+  .s.ok{fill:var(--ok-soft); stroke:var(--ok);}
+  .s.warn{fill:var(--warn-soft); stroke:var(--warn);}
+  .s.bad{fill:var(--bad-soft); stroke:var(--bad);}
+  .seg{font-family:var(--f-body); font-size:11px; fill:var(--ink); text-anchor:middle;}
+  .tick{stroke:var(--line); stroke-width:1;}
+  .axis{stroke:var(--faint); stroke-width:1;}
+  .yr{font-family:var(--f-mono); font-size:10px; fill:var(--faint); text-anchor:middle;}
+  .mk{fill:var(--accent);}
+  .mk.w{fill:var(--warn);}
+  .cut{stroke:var(--ink); stroke-width:1.2; stroke-dasharray:3 3;}
+
+  /* record states */
+  .states{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:20px;}
+  .stt{border-radius:12px; padding:14px 16px; border:1.5px solid var(--line); background:var(--surface);}
+  .stt b{display:block; font-family:var(--f-display); font-size:17px; margin-bottom:4px;}
+  .stt span{display:block; font-size:13px; color:var(--soft); line-height:1.5;}
+  .stt code{color:var(--ink);}
+  .stt.cand{border-color:var(--accent);} .stt.cand b{color:var(--accent);}
+  .stt.work{border-color:var(--ok);} .stt.work b{color:var(--ok);}
+  .stt.fault{border-color:var(--warn);} .stt.fault b{color:var(--warn);}
+  .stt.arch{border-color:var(--faint);} .stt.arch b{color:var(--soft);}
+
+  /* applications */
+  .apps{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:18px;}
+  .app{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px 20px;}
+  .app .k{font-family:var(--f-mono); font-size:10.5px; color:var(--soft); margin-bottom:4px;}
+  .app p{margin:0 0 8px; font-size:14px; color:var(--soft);}
+  .app p:last-child{margin:0;}
+  .app p b{color:var(--ink); font-weight:600;}
+  .flow{font-family:var(--f-mono); font-size:12.5px; background:var(--band); border-radius:10px; padding:12px 14px; overflow-x:auto; white-space:nowrap; margin:0;}
+
+  /* tables */
+  .tbl{overflow-x:auto; background:var(--surface); border:1px solid var(--line); border-radius:14px;}
+  table{border-collapse:collapse; width:100%; font-size:14px;}
+  th, td{text-align:left; vertical-align:top; padding:11px 14px; border-bottom:1px solid var(--line);}
+  tr:last-child td{border-bottom:none;}
+  th{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--soft); font-weight:500; background:var(--band);}
+  td.nw{white-space:nowrap;}
+  .pill{display:inline-block; font-family:var(--f-mono); font-size:10.5px; padding:1px 8px; border-radius:999px; border:1px solid; white-space:nowrap;}
+  .pill.block{color:var(--bad); border-color:var(--bad); background:var(--bad-soft);}
+  .pill.note{color:var(--warn); border-color:var(--warn); background:var(--warn-soft);}
+  .pill.auto{color:var(--accent); border-color:var(--accent); background:var(--accent-soft);}
+
+  /* reconciliation */
+  .rec{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:18px;}
+  .rc{border-top:3px solid var(--warn); background:var(--surface); border-radius:0 0 12px 12px; padding:14px 16px; border-inline:1px solid var(--line); border-bottom:1px solid var(--line);}
+  .rc b{display:block; margin-bottom:4px;}
+  .rc span{font-size:13.5px; color:var(--soft);}
+  .paths{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:18px;}
+  .path{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px;}
+  .path b{display:block; margin-bottom:4px;}
+  .path span{font-size:13.5px; color:var(--soft);}
+
+  .open{background:var(--warn-soft); border:1px solid var(--warn); border-radius:14px; padding:22px 24px;}
+  .open h2{font-size:21px;}
+  .open ul{margin:0; padding-left:1.1em; display:grid; gap:6px; max-width:76ch;}
+
+  footer{margin-top:40px; padding-top:18px; border-top:1px solid var(--line); font-size:12.5px; color:var(--faint);}
+
+  @media (max-width:760px){
+    .states{grid-template-columns:1fr 1fr;}
+    .apps, .rec{grid-template-columns:1fr;}
+  }
+  @media (max-width:560px){
+    .wrap{padding-inline:16px; padding-block:32px 56px;}
+    .split, .paths, .states{grid-template-columns:1fr;}
+    figure{padding:12px;}
+  }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Единый реестр камер · ЯНАО</p>
+  <h1>Жизненный цикл камеры в реестре</h1>
+  <p class="dek">Платформа согласования добавления и заведения камер состоит из двух частей: заявлений, по которым идёт согласование, и единого реестра, где каждая камера ЕСВ и каждый кандидат на подключение — одна постоянная запись от первой заявки до архива. Заявления меняют запись, реестр хранит результат. Реестр — источник истины: ЕСВ получает данные из него и регулярно с ним сверяется.</p>
+
+  <section>
+    <div class="split">
+      <div class="ent main">
+        <div class="k">Реестр · камера</div>
+        <h3>Постоянная запись в реестре</h3>
+        <p>Своё место, оборудование, владелец, эталонный кадр и история. Живёт годами, после вывода уходит в архив — не удаляется.</p>
+        <p>Состояние описывается двумя осями: размещение и подключение к ЕСВ.</p>
+      </div>
+      <div class="ent">
+        <div class="k">Согласование · заявление</div>
+        <h3>Документ, который меняет камеру</h3>
+        <p>Три вида: на размещение, на изменение, на вывод. Рассматривает ДРБ, у каждого своё короткое согласование.</p>
+        <p>У одной камеры за жизнь бывает несколько заявлений — все они остаются в её истории.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Две оси состояния камеры</h2>
+    <p class="lead">Размещение отвечает на вопрос «где и в каком виде стоит камера», подключение — «видит ли её ЕСВ». Оси меняются независимо, но связаны двумя правилами: подключение возможно только после монтажа, вывод — только после отключения.</p>
+    <figure>
+      <div class="scroll">
+      <svg class="d a" viewBox="0 0 910 392" role="img" aria-label="Две оси состояния камеры. Размещение: планируется, одобрена, смонтирована, выведена, либо отказано. Подключение к ЕСВ: не подключена, соглашение, подключена, временно отключена, отключена. Монтаж открывает подключение, вывод возможен только после отключения.">
+        <defs>
+          <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah acc" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+
+        <text class="ttl" x="0" y="20">РАЗМЕЩЕНИЕ</text>
+        <text class="ttl" x="0" y="228">ПОДКЛЮЧЕНИЕ К ЕСВ</text>
+
+        <!-- placement edges -->
+        <line class="e" x1="140" y1="60" x2="198" y2="60" marker-end="url(#a)"/>
+        <text class="el mid" x="170" y="52">ДРБ</text>
+        <line class="e" x1="340" y1="60" x2="398" y2="60" marker-end="url(#a)"/>
+        <text class="el mid" x="370" y="52">монтаж</text>
+        <line class="e" x1="540" y1="60" x2="768" y2="60" marker-end="url(#a)"/>
+        <text class="el mid" x="655" y="52">заявление на вывод</text>
+        <line class="e" x1="70" y1="84" x2="70" y2="122" marker-end="url(#a)"/>
+        <text class="el" x="78" y="107">отказ ДРБ</text>
+
+        <!-- esv edges -->
+        <line class="e" x1="140" y1="266" x2="398" y2="266" marker-end="url(#a)"/>
+        <text class="el mid" x="270" y="258">соглашение с РЯ</text>
+        <line class="e" x1="540" y1="266" x2="583" y2="266" marker-end="url(#a)"/>
+        <text class="el mid" x="562" y="258">РЯ</text>
+        <line class="e" x1="730" y1="266" x2="768" y2="266" marker-end="url(#a)"/>
+        <line class="e" x1="640" y1="290" x2="640" y2="328" marker-end="url(#a)"/>
+        <text class="el end" x="632" y="314">сбой</text>
+        <line class="e" x1="675" y1="330" x2="675" y2="292" marker-end="url(#a)"/>
+        <text class="el" x="683" y="314">ремонт</text>
+
+        <!-- dependencies -->
+        <line class="e dep" x1="470" y1="84" x2="470" y2="240" marker-end="url(#ac)"/>
+        <text class="el acc" x="478" y="160">монтаж открывает</text>
+        <text class="el acc" x="478" y="174">подключение</text>
+        <line class="e dep" x1="840" y1="242" x2="840" y2="86" marker-end="url(#ac)"/>
+        <text class="el acc end" x="832" y="160">вывод — только</text>
+        <text class="el acc end" x="832" y="174">после отключения</text>
+
+        <!-- placement nodes -->
+        <g class="n"><rect x="0" y="36" width="140" height="48" rx="8"/><text class="c" x="70" y="55">planned</text><text class="t" x="70" y="73">планируется</text></g>
+        <g class="n acc"><rect x="200" y="36" width="140" height="48" rx="8"/><text class="c" x="270" y="55">permitted</text><text class="t" x="270" y="73">одобрена</text></g>
+        <g class="n ok"><rect x="400" y="36" width="140" height="48" rx="8"/><text class="c" x="470" y="55">installed</text><text class="t" x="470" y="73">смонтирована</text></g>
+        <g class="n bad"><rect x="770" y="36" width="140" height="48" rx="8"/><text class="c" x="840" y="55">retired</text><text class="t" x="840" y="73">выведена</text></g>
+        <g class="n bad"><rect x="0" y="124" width="140" height="44" rx="8"/><text class="c" x="70" y="142">rejected</text><text class="t" x="70" y="159">отказано</text></g>
+
+        <!-- esv nodes -->
+        <g class="n"><rect x="0" y="242" width="140" height="48" rx="8"/><text class="c" x="70" y="261">none</text><text class="t" x="70" y="279">не подключена</text></g>
+        <g class="n acc"><rect x="400" y="242" width="140" height="48" rx="8"/><text class="c" x="470" y="261">agreement</text><text class="t" x="470" y="279">соглашение</text></g>
+        <g class="n ok"><rect x="585" y="242" width="145" height="48" rx="8"/><text class="c" x="657" y="261">connected</text><text class="t" x="657" y="279">подключена</text></g>
+        <g class="n warn"><rect x="585" y="330" width="145" height="48" rx="8"/><text class="c" x="657" y="349">suspended</text><text class="t" x="657" y="367">временно отключена</text></g>
+        <g class="n bad"><rect x="770" y="242" width="140" height="48" rx="8"/><text class="c" x="840" y="261">disconnected</text><text class="t" x="840" y="279">отключена</text></g>
+      </svg>
+      </div>
+      <figcaption>Сплошные стрелки — переходы внутри одной оси, пунктирные — правила, связывающие оси. «Отказано» и «выведена» переводят запись в архив: камера остаётся в реестре со всей историей.</figcaption>
+    </figure>
+
+    <div class="states">
+      <div class="stt cand"><b>Кандидат</b><span>планируется, одобрена или смонтирована — ещё не в ЕСВ. На карте: слой «планируемые» и «установлены, не подключены».</span></div>
+      <div class="stt work"><b>Рабочая</b><span>смонтирована + <code>connected</code>. На карте: слой «подключённые к ЕСВ».</span></div>
+      <div class="stt fault"><b>Неисправна</b><span>смонтирована + <code>suspended</code>. Идёт отсчёт срока ремонта.</span></div>
+      <div class="stt arch"><b>Архив</b><span>отказано или выведена. Не показывается на карте, доступна в истории.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Жизнь одной камеры</h2>
+    <p class="lead">Пример: камеру согласовали, смонтировали, подключили, она ломалась, её переносили, через шесть лет вывели. Заявления — короткие эпизоды, всё остальное время камера просто работает.</p>
+    <figure>
+      <div class="scroll">
+      <svg class="d b" viewBox="0 0 920 282" role="img" aria-label="Пример жизни камеры на шкале времени с 2027 по 2033 год: три заявления — на размещение, на перенос, на вывод; размещение и подключение к ЕСВ меняются независимо; проверки паспорта, канала и ракурса отмечены точками.">
+        <text class="lane" x="0" y="42">Заявления</text>
+        <text class="lane" x="0" y="98">Размещение</text>
+        <text class="lane" x="0" y="154">ЕСВ</text>
+        <text class="lane" x="0" y="204">Проверки</text>
+
+        <!-- applications -->
+        <rect class="s acc" x="130" y="24" width="120" height="30" rx="6"/><text class="seg" x="190" y="43">на размещение</text>
+        <rect class="s acc" x="590" y="24" width="90" height="30" rx="6"/><text class="seg" x="635" y="43">на перенос</text>
+        <rect class="s acc" x="760" y="24" width="80" height="30" rx="6"/><text class="seg" x="800" y="43">на вывод</text>
+
+        <!-- placement -->
+        <rect class="s plain" x="130" y="80" width="120" height="30"/><text class="seg" x="190" y="99">планируется</text>
+        <rect class="s acc" x="250" y="80" width="70" height="30"/><text class="seg" x="285" y="99">одобрена</text>
+        <rect class="s ok" x="320" y="80" width="520" height="30"/><text class="seg" x="500" y="99">смонтирована</text>
+        <rect class="s bad" x="840" y="80" width="70" height="30"/><text class="seg" x="875" y="99">выведена</text>
+        <line class="cut" x1="680" y1="80" x2="680" y2="110"/><text class="seg" x="728" y="99">новое место</text>
+
+        <!-- esv -->
+        <rect class="s plain" x="130" y="136" width="210" height="30"/><text class="seg" x="235" y="155">не подключена</text>
+        <rect class="s acc" x="340" y="136" width="60" height="30"/><text class="seg" x="370" y="155">соглаш.</text>
+        <rect class="s ok" x="400" y="136" width="120" height="30"/><text class="seg" x="460" y="155">подключена</text>
+        <rect class="s warn" x="520" y="136" width="40" height="30"/><text class="seg" x="540" y="155">сбой</text>
+        <rect class="s ok" x="560" y="136" width="240" height="30"/><text class="seg" x="680" y="155">подключена</text>
+        <rect class="s bad" x="800" y="136" width="110" height="30"/><text class="seg" x="855" y="155">отключена</text>
+
+        <!-- checks -->
+        <line class="tick" x1="130" y1="200" x2="910" y2="200"/>
+        <circle class="mk" cx="190" cy="200" r="5"/><text class="yr" x="190" y="222">заявка</text>
+        <circle class="mk" cx="320" cy="200" r="5"/><text class="yr" x="320" y="222">паспорт</text>
+        <circle class="mk" cx="398" cy="200" r="5"/><text class="yr" x="398" y="222">канал</text>
+        <circle class="mk w" cx="440" cy="200" r="5"/><text class="yr" x="440" y="222">КТ2</text>
+        <circle class="mk" cx="635" cy="200" r="5"/><text class="yr" x="635" y="222">заявка</text>
+        <circle class="mk w" cx="700" cy="200" r="5"/><text class="yr" x="700" y="222">КТ2</text>
+
+        <!-- axis -->
+        <line class="axis" x1="130" y1="246" x2="910" y2="246"/>
+        <line class="axis" x1="130" y1="242" x2="130" y2="250"/><text class="yr" x="130" y="264">2027</text>
+        <line class="axis" x1="260" y1="242" x2="260" y2="250"/><text class="yr" x="260" y="264">2028</text>
+        <line class="axis" x1="390" y1="242" x2="390" y2="250"/><text class="yr" x="390" y="264">2029</text>
+        <line class="axis" x1="520" y1="242" x2="520" y2="250"/><text class="yr" x="520" y="264">2030</text>
+        <line class="axis" x1="650" y1="242" x2="650" y2="250"/><text class="yr" x="650" y="264">2031</text>
+        <line class="axis" x1="780" y1="242" x2="780" y2="250"/><text class="yr" x="780" y="264">2032</text>
+        <line class="axis" x1="910" y1="242" x2="910" y2="250"/><text class="yr" x="910" y="264">2033</text>
+      </svg>
+      </div>
+      <figcaption>Пока идёт заявление на перенос, камера остаётся подключённой и работает на старом месте. После переноса ракурс сверяется с новым эталоном. Сверка реестра с ЕСВ идёт всё время подключения и на шкале не показана.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Три вида заявлений</h2>
+    <p class="lead">У всех одно согласование — меняется только то, что происходит с камерой после решения ДРБ.</p>
+    <pre class="flow">draft → submitted → [security_review] → решение ДРБ: approved · rework → draft · refused</pre>
+    <div class="apps">
+      <div class="app">
+        <div class="k">на размещение</div>
+        <h3>Новая камера</h3>
+        <p>При подаче в реестре появляется камера «планируется».</p>
+        <p><b>Одобрено</b> — камера «одобрена», можно монтировать. <b>Отказ</b> — «отказано», в архив.</p>
+      </div>
+      <div class="app">
+        <div class="k">на изменение</div>
+        <h3>Перенос, ракурс, модель</h3>
+        <p>Камера продолжает работать в прежнем виде, пока заявление рассматривается.</p>
+        <p><b>Одобрено</b> — после переделки обновляется карточка, повторяются автопроверка паспорта и сверка ракурса. Замена на такую же модель — без заявления, только обновление паспорта.</p>
+      </div>
+      <div class="app">
+        <div class="k">на вывод</div>
+        <h3>Камера больше не нужна</h3>
+        <p>Подают владелец или ДРБ. Подписчики — ДРБ, полиция, потребители аналитики — получают уведомление сразу.</p>
+        <p><b>Одобрено</b> — РЯ отключает от ЕСВ, затем «выведена», в архив; видеоархив хранится до конца 30 суток. <b>Отказ</b> — «не удалять», камера работает дальше.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Проверки на переходах</h2>
+    <p class="lead">Каждая проверка привязана к конкретному переходу и либо не пускает дальше, либо только уведомляет.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Когда</th><th>Что проверяется</th><th>Кто</th><th>Итог</th></tr></thead>
+        <tbody>
+          <tr><td>Подача заявления</td><td>Эталонное фото, координаты, азимут, класс камеры (обзор, аналитика, идентификация)</td><td>Система</td><td><span class="pill block">не пускает</span></td></tr>
+          <tr><td>Подача заявления</td><td>Дублирование обзора, обзор «в стену»; для идентификации — ширина зоны: Full HD при 60 px между глаз закрывает ~1,9 м</td><td>Система</td><td><span class="pill note">предупреждение</span></td></tr>
+          <tr><td>Смонтирована → соглашение</td><td>Паспорт по требованиям ЕСВ: 1080p/25 к/с, H.264 Main/High, RTSP + ONVIF S/T, NTP, не хуже −45 °C и IP66, пароль сменён</td><td>Система</td><td><span class="pill block">не пускает</span></td></tr>
+          <tr><td>Соглашение → подключена</td><td>Замер канала за 24 ч: класс А — ≥2,5 Мбит/с, задержка &lt;30 мс, джиттер &lt;10 мс, потери &lt;0,1 %; класс Б — смягчённые, только обзор</td><td>РЯ</td><td><span class="pill block">не пускает</span></td></tr>
+          <tr><td>После подключения, после изменения, затем регулярно</td><td>КТ2: фактический ракурс против эталонного кадра</td><td>Система</td><td><span class="pill note">уведомление ДРБ</span></td></tr>
+          <tr><td>Всё время подключения</td><td>Доступность потока и саботаж: потеря сигнала, перекрытие, засветка, смена ориентации</td><td>Система</td><td><span class="pill auto">временно отключена</span></td></tr>
+          <tr><td>Временно отключена дольше срока</td><td>Срок ремонта</td><td>Система</td><td><span class="pill note">эскалация в ДРБ</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Как реестр остаётся единым</h2>
+    <p class="lead">Камера попадает в реестр только двумя путями — и реестр постоянно сверяется с ЕСВ, чтобы камеры не появлялись в обход.</p>
+    <div class="paths">
+      <div class="path"><b>Заявление на размещение</b><span>Новая камера проходит полный цикл: план, монтаж, паспорт, соглашение, подключение.</span></div>
+      <div class="path"><b>Импорт из ЕСВ</b><span>Уже подключённые камеры, включая 652+ по старым соглашениям, заходят как «смонтирована + подключена» с пометкой «дозаполнить паспорт».</span></div>
+    </div>
+    <div class="rec">
+      <div class="rc"><b>Есть в ЕСВ, нет в реестре</b><span>Неучтённая камера — уведомление ДРБ и РЯ. Ровно та проблема из письма ДРБ: камеры появлялись в ЕСВ в обход согласования.</span></div>
+      <div class="rc"><b>В реестре подключена, в ЕСВ нет</b><span>Расхождение по статусу — разбирает РЯ.</span></div>
+      <div class="rc"><b>Не совпадают данные</b><span>Координаты, модель, адрес потока — верными считаются данные реестра, ЕСВ обновляется из него.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Кто ведёт карточку</h2>
+    <p class="lead">У каждой группы полей один ответственный — иначе через год никто не знает, какие координаты верные.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Группа</th><th>Поля</th><th>Ведёт</th></tr></thead>
+        <tbody>
+          <tr><td class="nw">Идентификация</td><td>Номер в реестре, <code>esv_id</code>, наименование по маске</td><td>Система; маску задаёт ДРБ</td></tr>
+          <tr><td class="nw">Назначение</td><td>Класс (обзор, аналитика, идентификация), приоритет</td><td>ДРБ</td></tr>
+          <tr><td class="nw">Место</td><td>Координаты WGS-84, адрес, МО, высота, азимут, наклон, сектор, эталонный кадр</td><td>Владелец</td></tr>
+          <tr><td class="nw">Оборудование</td><td>Модель, кодеки, ONVIF, климатическое исполнение, поворотная или нет</td><td>Владелец</td></tr>
+          <tr><td class="nw">Связь</td><td>Адрес потока, класс канала, точка агрегации</td><td>РЯ</td></tr>
+          <tr><td class="nw">Принадлежность</td><td>Владелец, эксплуатант и контакт; соглашение с РЯ</td><td>Владелец; соглашение — РЯ</td></tr>
+          <tr><td class="nw">Согласования</td><td>Заявления, решения ДРБ, ответы силового блока</td><td>ДРБ</td></tr>
+          <tr><td class="nw">Эксплуатация</td><td>Доступность, неисправности, последняя сверка ракурса</td><td>Система</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="lead" style="margin-top:14px">Раз в год владелец подтверждает, что карточка актуальна: камера на месте, контакты верны. Не подтвердил — уведомление ДРБ.</p>
+  </section>
+
+  <section class="open">
+    <h2>Осталось решить</h2>
+    <ul>
+      <li>Может ли РЯ подключить камеру к ЕСВ в обход реестра? Если да — сверка с ЕСВ становится главным инструментом контроля.</li>
+      <li>Через сколько минут без потока камера считается временно отключённой и какой срок даётся на ремонт.</li>
+      <li>Как часто повторять сверку ракурса после подключения.</li>
+      <li>Что считается изменением, требующим заявления: перенос — да, замена на такую же модель — нет, а смена объектива или высоты?</li>
+      <li>Какие пункты автопроверки паспорта не пускают дальше, а какие только предупреждают.</li>
+      <li>Параметры канала для класса Б.</li>
+    </ul>
+  </section>
+
+  <footer>Основано на ТЗ «Реестр СВН» v0.1, требованиях к СВН для подключения к ЕСВ ЯНАО (ред. 15.10.2025), федеральных ТТ к СВН АПК «Безопасный город» и модели реестра, согласованной 23.09.2026.</footer>
+</div>
