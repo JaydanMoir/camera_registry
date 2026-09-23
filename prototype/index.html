@@ -78,6 +78,8 @@ button{cursor:pointer}
 .top h1{font-family:var(--f-disp);font-size:22px;font-weight:700;margin:0;line-height:1.2;text-wrap:balance}
 .top .crumb{font-size:12px;color:var(--soft)}
 .top .sp{flex:1}
+.top-new{white-space:nowrap}
+.top-draft{font-weight:500;opacity:.8;font-size:12px;margin-left:4px}
 .who{font-size:12.5px;color:var(--soft);text-align:right;line-height:1.3}
 .who b{color:var(--ink);font-weight:600;display:block}
 .bell{position:relative;border:1px solid var(--line);background:var(--surface);border-radius:10px;width:38px;height:38px;display:grid;place-items:center}
@@ -1592,6 +1594,7 @@ function render() {
       <header class="top">
         <div><div class="crumb">${esc(ROLES[role].title)} · ${esc(ROLES[role].sub)}</div><h1>${esc(titles[UI.page])}</h1></div>
         <div class="sp"></div>
+        ${role === 'owner' && UI.page !== 'new' ? `<button class="btn pri top-new" data-act="nav" data-v="new">+ Новое заявление${S.draft && S.draft.items.length && !S.draft.appId ? ` <span class="top-draft">черновик: ${S.draft.items.length}</span>` : ''}</button>` : ''}
         <div class="who"><b>${esc(ROLES[role].actor)}</b>демо-пользователь</div>
         <button class="bell" data-act="bell" aria-label="Уведомления"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>${unread ? `<i>${unread}</i>` : ''}</button>
         ${UI.bell ? bellPop() : ''}
@@ -1645,7 +1648,6 @@ function pageHome() {
       </div>
       <section class="card"><div class="card-h"><h3>Последние события</h3></div>
         <div>${feed.map(n => `<div class="note" data-act="note" data-v="${n.id}" style="cursor:pointer"><small>${fmtDT(n.t)}</small>${esc(n.text)}</div>`).join('') || '<div class="empty">Событий нет</div>'}</div>
-        <div class="card-b"><button class="btn pri" data-act="nav" data-v="new">+ Новое заявление на размещение</button></div>
       </section>
     </div>
     <p class="demo-note">Это кликабельный прототип по проекту ТЗ v1.5. Как устроен процесс и что делает каждый участник — в разделе «Инструкция». Логика процесса собрана в одном модуле, который повторяет серверный API из ТЗ: все проверки, переходы и права выполняются в нём, а интерфейс только вызывает его — в настоящем прототипе этот модуль будет сервером. Переключайте рабочие места слева, чтобы пройти сценарий целиком. Данные хранятся только в вашем браузере.</p>`;
@@ -1863,7 +1865,7 @@ function pageApps() {
   const F = {all: ['Все', () => true], active: ['На рассмотрении ДРБ', a => ACTIVE.includes(a.status)], rework: ['На доработке', a => a.status === 'rework'], done: ['Рассмотрено', a => a.status === 'done']};
   const apps = own.filter(F[UI.appsFilter][1]);
   return `<div class="row"><div class="chips">${Object.entries(F).map(([k, [t, fn]]) => `<button class="chip${UI.appsFilter === k ? ' on' : ''}" data-act="appsf" data-v="${k}">${t} <i>${own.filter(fn).length}</i></button>`).join('')}</div><div class="grow"></div>
-      ${S.draft && S.draft.items.length ? `<span class="muted">Есть черновик: ${S.draft.items.length} кам.</span>` : ''}<button class="btn pri" data-act="nav" data-v="new">+ Новое заявление</button></div>
+</div>
     <section class="card">${appsTable(apps, false)}</section>`;
 }
 
