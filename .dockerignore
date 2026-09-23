@@ -1,0 +1,6 @@
+.git
+.gitignore
+tz
+README.md
+DEPLOY.md
+*.zip
