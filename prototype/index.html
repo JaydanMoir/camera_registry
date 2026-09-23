@@ -258,7 +258,7 @@ figure{margin:0}
 .item-tab>.x:hover{color:var(--bad)}
 .item-tab .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
 .item-tab.todo .dot{background:var(--warn)}
-.item-tab .tl.noname{font-style:italic;color:var(--soft)}
+.item-tab .itl.noname{font-style:italic;color:var(--soft)}
 .help{display:grid;gap:18px;max-width:980px}
 .help h2{font-size:17px;margin:0 0 8px}
 .help h4{font-size:14px;margin:14px 0 6px}
@@ -700,7 +700,7 @@ const isOutdoor = c => /^Внешняя/.test(c.esvType || 'Внешняя');
 const STAGE2 = [
   ['Название', c => !!c.name, 'ЕСВ'], ['RTSP URL', c => !!c.rtsp, 'ЕСВ'], ['Широта и долгота', c => true, 'ЕСВ'], ['Район', c => true, 'ЕСВ'], ['Группа камер', c => !!groupOf(c), 'ЕСВ'],
   ['Модель', c => !!M(c)], ['Тип камеры (классификатор ЕСВ)', c => !!c.esvType], ['Канал связи до узла РМТКС', c => !!(c.link && c.link.node && (c.link.mode === 'rmtks' || (c.link.operator || '').trim()))], ['IP-адрес камеры', c => !!c.ip], ['Адрес установки', c => !!c.address],
-  ['Учётные данные (в хранилище секретов)', c => !!(c.secret && c.secret.given)], ['PTZ-учётные данные (для поворотных)', c => !(M(c) && M(c).ptz) || !!(c.secret && c.secret.ptz)],
+  ['Учётные данные (хранятся зашифрованно)', c => !!(c.secret && c.secret.given)], ['PTZ-учётные данные (для поворотных)', c => !(M(c) && M(c).ptz) || !!(c.secret && c.secret.ptz)],
   ['Фактический азимут и угол обзора', c => c.factAz != null && c.factFov != null], ['Описание', c => !!(c.descr && c.descr.trim())],
   ['Техподдержка', c => !!supportOf(c)],
   ['Данные паспорта СВН (серийный номер, прошивка, место размещения, высота для внешних)', c => !!(c.pass && c.pass.serial && c.pass.fw && c.pass.placeDescr && (!isOutdoor(c) || c.pass.height))],
@@ -1084,7 +1084,7 @@ const API = {
     c.passport = p;
     if (f.password || (ptz && f.ptzPassword)) {
       c.secret = {given: true, date: dOnly(S.clock), changed: dOnly(S.clock), ptz: ptz ? !!(f.ptzPassword || (c.secret && c.secret.ptz)) : false};
-      audit('Учётные данные переданы в хранилище секретов' + (pr.pass && !keepSecret ? ' (из RTSP-ссылки, в реестре ссылка хранится с паролем «••••»)' : '') + (ptz && f.ptzPassword ? ' (включая PTZ)' : ''), c.num);
+      audit('Учётные данные сохранены в зашифрованном виде' + (pr.pass && !keepSecret ? ' (из RTSP-ссылки, в реестре ссылка хранится с паролем «••••»)' : '') + (ptz && f.ptzPassword ? ' (включая PTZ)' : ''), c.num);
     }
     const was = c.place;
     if (c.place === 'permitted') { c.place = 'installed'; c.installedAt = S.clock; }
@@ -1161,7 +1161,7 @@ const API = {
     r.checks = checks; r.ok = checks.every(x => x[1]);
     c.streamCheck = r;
     hist(c, `Проверка потока (esvcheck): ${r.ok ? 'пройдена' : 'не пройдена'} — ${res.join('×')}, ${r.fps} к/с, ${codec}, ${bitrate} Мбит/с`);
-    audit(`Проверка потока через esvcheck: ${r.ok ? 'пройдена' : 'не пройдена'} (учётные данные подставлены из хранилища)`, c.num);
+    audit(`Проверка потока через esvcheck: ${r.ok ? 'пройдена' : 'не пройдена'} (логин и пароль подставил сервер)`, c.num);
     return r;
   },
   channelCheck(camId, f) {
@@ -1694,7 +1694,7 @@ function pageRegistry() {
       <tr class="ch">${cols.map(x => `<th class="${x.c.k === 'num' ? 'pin' : ''}"><button class="sort" data-act="sort" data-v="${x.c.k}">${esc(x.c.l)}${arrow(x.c.k)}</button></th>`).join('')}</tr></thead>
       <tbody>${rows.map(c => `<tr class="click${c.id === sel ? ' sel' : ''}" data-act="cam" data-v="${c.id}">${cols.map(x => cell(x, c)).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="empty">Ничего не найдено</td></tr>`}</tbody>
     </table></div></section>
-    <p class="demo-note">В таблице — основные поля; карточка камеры (клик по строке) показывает остальные: описание, контакт техподдержки, сверку ракурса. Характеристики модели (кодеки, ONVIF, климатическое исполнение) хранятся в справочнике моделей, а не в каждой карточке. Учётные данные в реестре не хранятся — только признак передачи в хранилище секретов.</p>`;
+    <p class="demo-note">В таблице — основные поля; карточка камеры (клик по строке) показывает остальные: описание, контакт техподдержки, сверку ракурса. Характеристики модели (кодеки, ONVIF, климатическое исполнение) хранятся в справочнике моделей, а не в каждой карточке. Пароли в реестре не показываются и не выгружаются — только отметка, что они переданы.</p>`;
 }
 function exportCSV() {
   const {list} = regList();
@@ -1770,7 +1770,7 @@ function renderDrawer() {
           : `<div class="muted">${c.needsPassport ? 'Импортирована из ЕСВ — паспорт не заполнен.' : 'Заполняется владельцем после монтажа.'}</div>`}
       </div>
       <div><div class="sec-t">Учётные данные камеры</div>
-        <div class="secret"><span>${c.secret && c.secret.given ? `Переданы в хранилище секретов ${fmtD(c.secret.date)}. В карточке, выгрузках и API не отображаются.` : 'Не переданы.'}</span>
+        <div class="secret"><span>${c.secret && c.secret.given ? `Переданы ${fmtD(c.secret.date)}, хранятся в зашифрованном виде. В карточке, выгрузках и API не отображаются.` : 'Не переданы.'}</span>
         ${S.role === 'rya' && c.secret && c.secret.given ? `<button class="btn sm" data-act="secret" data-v="${c.id}">Показать (с записью в журнал)</button>` : ''}</div>
       </div>
       <div><div class="sec-t">Заявления</div>${apps.length ? apps.map(a => `<div class="row" style="padding:4px 0">${S.role === 'rya' ? `<span class="num">${a.id}</span>` : `<button class="btn sm" data-act="app" data-v="${a.id}">${a.id}</button>`}<span>${KIND[a.kind]}</span>${pill(...APP_ST[a.status])}</div>`).join('') : '<div class="muted">Нет</div>'}</div>
@@ -1819,7 +1819,7 @@ function slaTag(date) {
 function esvRecord(c) {
   const [lat, lng] = toLatLon(c.x, c.y), m = M(c) || {};
   return [['name', c.fullName], ['description', c.descr || ''], ['lat, lng', lat.toFixed(6) + ', ' + lng.toFixed(6)], ['district', 'Ноябрьск'], ['address', c.address],
-    ['groups', groupOf(c) || ''], ['sourceUrl', (c.rtsp || '') + '  ← пароль подставит интеграция из хранилища'], ['cameraType', c.esvType || ''], ['hasPTZ', m.ptz ? 'true' : 'false'],
+    ['groups', groupOf(c) || ''], ['sourceUrl', (c.rtsp || '') + '  ← пароль подставит платформа при отправке'], ['cameraType', c.esvType || ''], ['hasPTZ', m.ptz ? 'true' : 'false'],
     ['vend, model', m.custom ? m.vendor + ' ' + m.model : (m.name || '').replace(' (демо)', '')], ['ip', c.ip || ''], ['defaultAzimuth, defaultViewAngle', `${c.factAz ?? c.az}, ${c.factFov ?? c.fov}`],
     ['apiType, archiveLength', 'NETRIS, 2592000'], ['extendedInfo', c.agreement ? S.agreements[c.agreement].title : '']];
 }
@@ -1866,7 +1866,7 @@ function pageNew() {
         ${UI.wizUndo ? `<div class="callout info row" style="padding:6px 8px 6px 12px"><span class="grow">${esc(UI.wizUndo.text)}</span><button class="btn sm" data-act="wizundo">Вернуть</button></div>` : ''}
         ${items.length ? (() => { const iss = items.map(x => draftIssues(x, items)), ready = iss.filter(x => !x.length).length, empty = items.filter(draftEmpty).length;
           return `<div class="row" style="gap:8px"><span class="muted grow" style="font-size:12.5px">Готово к подаче: <b>${ready}</b> из ${items.length}${ready < items.length ? ' · <i class="dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--warn)"></i> — не хватает данных' : ''}</span>${!d.appId && empty ? `<button class="btn sm" data-act="wizdelempty" title="Позиции без наименования и эталонного кадра — обычно это случайные клики по карте">Удалить пустые (${empty})</button>` : ''}</div>
-          <div class="items">${items.map((x, i) => `<span class="item-tab${i === UI.wizSel ? ' on' : ''}${iss[i].length ? ' todo' : ''}"><button data-act="wizsel" data-v="${i}" title="${iss[i].length ? 'Не хватает: ' + esc(iss[i].join(', ')) : 'Готово к подаче'}"><i class="dot"></i><span class="tl${x.name.trim() ? '' : ' noname'}" title="${x.name.trim() ? '' : 'Название ещё не указано — показан адрес'}">${esc(tabLabel(x, i))}</span></button>${d.appId ? '' : `<button class="x" data-act="wizdelone" data-v="${i}" aria-label="Удалить позицию ${i + 1}" title="Удалить позицию">×</button>`}</span>`).join('')}</div>`; })()
+          <div class="items">${items.map((x, i) => `<span class="item-tab${i === UI.wizSel ? ' on' : ''}${iss[i].length ? ' todo' : ''}"><button data-act="wizsel" data-v="${i}" title="${iss[i].length ? 'Не хватает: ' + esc(iss[i].join(', ')) : 'Готово к подаче'}"><i class="dot"></i><span class="itl${x.name.trim() ? '' : ' noname'}" title="${x.name.trim() ? '' : 'Название ещё не указано — показан адрес'}">${esc(tabLabel(x, i))}</span></button>${d.appId ? '' : `<button class="x" data-act="wizdelone" data-v="${i}" aria-label="Удалить позицию ${i + 1}" title="Удалить позицию">×</button>`}</span>`).join('')}</div>`; })()
           : `<div class="callout info">Поставьте на карте точку предполагаемой установки. Сектор обзора задаётся ползунками — он сразу рисуется на карте рядом с уже существующими камерами. Точку можно перетащить мышью, лишнюю — удалить крестиком.</div>`}
         ${it ? `
           <div class="row" style="border-top:1px solid var(--line);padding-top:12px"><b class="grow">Позиция ${UI.wizSel + 1}</b>${d.appId ? '' : `<button class="btn sm bad" data-act="wizdel">Удалить позицию</button>`}</div>
@@ -1982,7 +1982,7 @@ function pageHelp() {
     <table><thead><tr><th>Этап</th><th>Кто отвечает</th><th>Срок</th><th>Что происходит и зачем</th></tr></thead><tbody>
       <tr><td><b>1. Заявление</b></td><td>Владелец</td><td>—</td><td>Точка на карте, сектор обзора, назначение, эталонный кадр. <span class="why">Этого хватает ДРБ, чтобы решить, нужна ли камера здесь. Технические данные на этом этапе не нужны: камеры ещё нет.</span></td></tr>
       <tr><td><b>2. Решение ДРБ</b></td><td>ДРБ</td><td>10 раб. дней</td><td>Решение по каждой камере отдельно: одобрить, вернуть на доработку или отказать с причиной из справочника. Для назначения «общественная безопасность» сначала нужны ответы силового блока. <span class="why">Одно заявление — до 50 камер, но одна спорная камера не задерживает остальные.</span></td></tr>
-      <tr><td><b>3. Монтаж и данные для ЕСВ</b></td><td>Владелец</td><td>согласование действует 6 мес.</td><td>После монтажа: модель, IP-адрес, RTSP-ссылка с логином и паролем, канал до узла РМТКС, фактический азимут, данные паспорта СВН, техподдержка. <span class="why">Пароль сразу уходит в хранилище секретов, в интерфейсе он скрыт.</span></td></tr>
+      <tr><td><b>3. Монтаж и данные для ЕСВ</b></td><td>Владелец</td><td>согласование действует 6 мес.</td><td>После монтажа: модель, IP-адрес, RTSP-ссылка с логином и паролем, канал до узла РМТКС, фактический азимут, данные паспорта СВН, техподдержка. <span class="why">Пароль хранится в зашифрованном виде и в интерфейсе не показывается.</span></td></tr>
       <tr><td><b>4. Соглашение с РЯ</b></td><td>«Ресурсы Ямала»</td><td rowspan="2">5 раб. дней на оба этапа</td><td>Камеру добавляют в перечень к соглашению организации. Паспорт СВН (приложение № 1) формирует платформа из карточки. <span class="why">Так бумаги не расходятся с реестром.</span></td></tr>
       <tr><td><b>5. Проверка и добавление в ЕСВ</b></td><td>«Ресурсы Ямала»</td><td>Четыре пункта: карточка, видеопоток, канал, запись для ЕСВ. После этого кнопка «Добавить в ЕСВ» создаёт камеру в ЕСВ через API. <span class="why">Никто не переносит данные вручную из таблиц.</span></td></tr>
       <tr><td><b>6. В ЕСВ</b></td><td>—</td><td>—</td><td>Камера рабочая. Неисправность → заявка подрядчику техподдержки. Изменение или вывод → новое заявление.</td></tr>
@@ -2035,7 +2035,7 @@ function pageHelp() {
     <ol>
       <li><b>Подключение → Новые модели на проверке</b> — внесите модель в справочник или отклоните с причиной.</li>
       <li><b>1. Включить в соглашение</b> — выберите соглашение организации или оформите новое (номер, дата, скан).</li>
-      <li><b>2. Проверка и добавление в ЕСВ</b> — четыре пункта: карточка (проверяется автоматически), видеопоток через esvcheck (пароль подставляется из хранилища), замер канала до узла РМТКС, подтверждение записи. Потом «Добавить в ЕСВ»: камера создаётся в ЕСВ через API, её ID записывается в реестр.</li>
+      <li><b>2. Проверка и добавление в ЕСВ</b> — четыре пункта: карточка (проверяется автоматически), видеопоток через esvcheck (пароль подставляет сервер), замер канала до узла РМТКС, подтверждение записи. Потом «Добавить в ЕСВ»: камера создаётся в ЕСВ через API, её ID записывается в реестр.</li>
       <li>Нашли ошибку в данных — «Вернуть владельцу» с комментарием: владелец увидит его задачей на главной.</li>
       <li><b>Неисправности</b> — открытые заявки подрядчикам и их сроки. <b>Сверка с ЕСВ</b> — расхождения реестра и ЕСВ.</li>
       <li>Пароль камеры можно открыть только с указанием цели. Каждый просмотр пишется в журнал.</li>
@@ -2044,7 +2044,7 @@ function pageHelp() {
   <section class="card"><div class="card-h"><h3>Частые вопросы</h3></div><div class="card-b"><table><tbody>
     <tr><td><b>Случайно натыкал лишних камер</b></td><td>До подачи: крестик на вкладке или «Удалить пустые», отмена — «Вернуть». После подачи: «Отозвать позицию» в заявлении, пока ДРБ не решил.</td></tr>
     <tr><td><b>Ошибся в точке или азимуте</b></td><td>До подачи — перетащите точку или подвиньте ползунок. После одобрения и монтажа — «Заявление на изменение». Перенос в другое место — вывод и новое заявление.</td></tr>
-    <tr><td><b>Сменился пароль камеры</b></td><td>В прототипе пока не реализовано. В целевой системе — отдельная операция «Обновить учётные данные» без согласования ДРБ: новый пароль сразу уходит в хранилище и в ЕСВ.</td></tr>
+    <tr><td><b>Сменился пароль камеры</b></td><td>В прототипе пока не реализовано. В целевой системе — отдельная операция «Обновить учётные данные» без согласования ДРБ: новый пароль сохраняется в зашифрованном виде и сразу передаётся в ЕСВ.</td></tr>
     <tr><td><b>Почему нельзя ввести всё сразу</b></td><td>Технические данные появляются только после монтажа, а решение ДРБ нужно до покупки и монтажа. Два этапа избавляют от лишней работы по камерам, которым откажут.</td></tr>
     <tr><td><b>Кто видит мои камеры</b></td><td>Чужие камеры владелец видит только как точку и сектор, без технических данных. ДРБ и РЯ видят всё, пароль — только РЯ и с записью в журнал.</td></tr>
   </tbody></table></div></section>
@@ -2264,7 +2264,7 @@ function mInstall(id) {
     <label class="fld"><span>Пароль</span><input type="password" id="f-pass" autocomplete="new-password"></label></div>
     <div class="grid2" id="ptzbox"${M(c) && M(c).ptz ? '' : ' hidden'}><label class="fld"><span>Имя PTZ-пользователя (только для поворотных)</span><input type="text" id="f-puser" autocomplete="off" placeholder="${sec.ptz ? 'переданы' : ''}"></label>
     <label class="fld"><span>Пароль PTZ-пользователя</span><input type="password" id="f-ppass" autocomplete="new-password"></label></div>
-    <div class="faint" style="font-size:12px">После сохранения пароль из ссылки уходит в хранилище секретов, в карточке ссылка показывается как rtsp://логин:••••@… Принимается любая RTSP-ссылка; если пароль похож на заводской, система только предупредит. Глубина архива единая для всех камер ЕСВ (${ESV_ARCHIVE_DAYS} суток) и не вводится.</div>`,
+    <div class="faint" style="font-size:12px">После сохранения пароль из ссылки шифруется и скрывается: в карточке ссылка показывается как rtsp://логин:••••@… Принимается любая RTSP-ссылка; если пароль похож на заводской, система только предупредит. Глубина архива единая для всех камер ЕСВ (${ESV_ARCHIVE_DAYS} суток) и не вводится.</div>`,
     `<button class="btn" data-act="mclose">Отмена</button><button class="btn pri" data-act="m-install" data-v="${c.id}">Сохранить и проверить</button>`);
 }
 function mDecide(idx, outcome) {
@@ -2293,7 +2293,7 @@ function mAgree(id) {
 function mProtocol(id) {
   const c = cam(id);
   modal(`Протокол подключения · ${c.num}`, `<div class="sec-t" style="margin:0">1. Проверка потока</div>
-    <div class="row"><button class="btn" data-act="stream" data-v="${id}">Проверить поток через esvcheck</button><span class="faint" style="font-size:12px">Запрос идёт с сервера платформы; логин и пароль подставляются из хранилища и не показываются</span></div>
+    <div class="row"><button class="btn" data-act="stream" data-v="${id}">Проверить поток через esvcheck</button><span class="faint" style="font-size:12px">Запрос идёт с сервера платформы; логин и пароль подставляет сервер, они не показываются</span></div>
     <div id="stream-out">${streamBox(c.streamCheck)}</div>
     <div class="sec-t" style="margin:6px 0 0">2. Запись для ЕСВ — сформирована из карточки</div>
     <details class="esvrec"><summary>Показать поля (формат импорта ЕСВ, NETRIS)</summary><dl class="kv">${esvRecord(c).map(([k, v]) => `<dt class="num">${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl></details>
@@ -2331,7 +2331,7 @@ function mEsvAdd(id) {
     ${c.rework ? `<div class="callout warn">Возвращена владельцу на исправление: ${esc(c.rework.reason)}. Добавить можно после исправления.</div>` : ''}
     <div class="esv-step"><div class="row"><b>1. Карточка камеры</b>${mark(readyOk)}<span class="faint" style="font-size:12px">проверяется автоматически</span></div><div class="checks">${ready.map(r => row(r[1], r[0], r[2])).join('')}</div></div>
     <div class="esv-step"><div class="row"><b>2. Видеопоток</b>${mark(st && st.ok)}<button class="btn sm" data-act="stream" data-v="${id}">${st ? 'Проверить заново' : 'Проверить через esvcheck'}</button></div>
-      <div class="faint" style="font-size:12px">Запрос идёт с сервера платформы; логин и пароль подставляются из хранилища</div><div id="stream-out">${streamBox(st)}</div></div>
+      <div class="faint" style="font-size:12px">Запрос идёт с сервера платформы; логин и пароль подставляет сервер</div><div id="stream-out">${streamBox(st)}</div></div>
     <div class="esv-step"><div class="row"><b>3. Канал до узла РМТКС</b>${mark(c.channelCheck && c.channelCheck.ok)}<span class="faint" style="font-size:12px">${c.link ? esc(c.link.mode === 'rmtks' ? 'РМТКС на объекте' : 'VPN: ' + c.link.operator) + ' → ' + esc(RMTKS[c.link.node].replace('Узел РМТКС, ', '')) : ''}</span></div>
       <div class="grid3"><label class="fld"><span>Класс канала</span><select id="f-cls"><option value="A"${ch.cls === 'A' ? ' selected' : ''}>А — наземный</option><option value="B"${ch.cls === 'B' ? ' selected' : ''}>Б — спутник / сотовая</option></select></label>
       <label class="fld"><span>Пропускная способность, Мбит/с</span><input type="number" step="0.1" id="f-bw" value="${ch.bw}"></label>
@@ -2374,7 +2374,7 @@ function mPassDoc(id) {
       <figure class="frame"><img alt="Зона обзора" src="${c.factFrame ? (c.factFrame === 'gen' ? frameOf(c) : c.factFrame) : frameOf(c)}"><figcaption>Зона обзора — ${c.factFrame ? 'фото после монтажа' : 'эталонный кадр'}</figcaption></figure>
       <figure class="frame"><div style="aspect-ratio:16/10;display:grid;place-items:center;color:var(--faint);font-size:12px;text-align:center;padding:6px">Фото места установки и домового знака — по желанию</div><figcaption>Место установки</figcaption></figure>
     </div></div>
-    <div class="faint" style="font-size:12px">IP-адрес, RTSP, логин и пароль в паспорт не входят — они хранятся в защищённом хранилище, а не в документе.</div>`,
+    <div class="faint" style="font-size:12px">IP-адрес, RTSP, логин и пароль в паспорт не входят — они хранятся в зашифрованном виде отдельно от документа.</div>`,
     `<button class="btn" data-act="mclose">Закрыть</button>${DL ? `<button class="btn pri" data-act="passdl" data-v="${id}">Скачать для печати</button>` : ''}`);
 }
 function passDocHTML(c) {
@@ -2536,7 +2536,7 @@ document.addEventListener('input', e => {
     const it = S.draft.items[UI.wizSel]; const k = t.dataset.wiz;
     it[k] = ['az', 'fov', 'range', 'passWidth'].includes(k) ? +t.value : t.value;
     const o = $('#o-' + k); if (o) o.textContent = it[k] + (k === 'range' ? ' м' : '°');
-    if (k === 'name') { const tab = $$('.item-tab')[UI.wizSel]; if (tab) { $('.tl', tab).textContent = tabLabel(it, UI.wizSel); $('.tl', tab).classList.toggle('noname', !it.name.trim()); tab.classList.toggle('todo', draftIssues(it, S.draft.items).length > 0); } }
+    if (k === 'name') { const tab = $$('.item-tab')[UI.wizSel]; if (tab) { $('.itl', tab).textContent = tabLabel(it, UI.wizSel); $('.itl', tab).classList.toggle('noname', !it.name.trim()); tab.classList.toggle('todo', draftIssues(it, S.draft.items).length > 0); } }
     save();
     if (['az', 'fov', 'range'].includes(k)) refreshWizMap();
   }
