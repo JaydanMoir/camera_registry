@@ -263,6 +263,8 @@ figure{margin:0}
 .item-tab .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
 .item-tab.todo .dot{background:var(--warn)}
 .item-tab .itl.noname{font-style:italic;color:var(--soft)}
+.newsup{display:grid;gap:10px}
+.newsup[hidden]{display:none}
 .empty-cta{display:grid;gap:8px;justify-items:start;padding:28px 22px}
 .empty-cta b{font-size:15px}
 .welcome h2{font-family:var(--f-disp);font-size:20px;margin:0 0 6px}
@@ -1088,10 +1090,11 @@ const API = {
     if (f.support !== 'self' && f.support !== '__new' && !(contractorById(f.support) && contractorById(f.support).org === c.org)) bad('VALIDATION', 'Контракт не относится к вашей организации');
     if (f.support === '__new') {
       const n = f.newSupport || {};
-      if (!n.name || !n.contact) bad('VALIDATION', 'Для нового исполнителя укажите организацию и контакт для заявок о неисправности');
+      if (!n.name) bad('VALIDATION', 'Укажите исполнителя — организацию, которая обслуживает камеру');
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(n.contact || '')) bad('VALIDATION', 'Укажите e-mail для заявок о неисправности, например service@firma.ru');
       const k = 'cc' + (S.seq.ctr = (S.seq.ctr || 1) + 1);
       S.contractors = S.contractors || {};
-      S.contractors[k] = {org: c.org, name: n.name, contact: n.contact, contract: n.contract || 'контракт не указан', custom: true, by: actor(), at: S.clock};
+      S.contractors[k] = {org: c.org, name: n.name, contact: n.contact, contract: n.num || n.date ? `Контракт${n.num ? ' № ' + n.num : ''}${n.date ? ' от ' + fmtD(n.date + 'T12:00:00Z') : ''}` : 'контракт не указан', custom: true, by: actor(), at: S.clock};
       audit(`Добавлен исполнитель техобслуживания: ${n.name}`, ORGS[c.org].short);
       f.support = k;
     }
@@ -2291,9 +2294,12 @@ function supportFields(c) {
       ${list.map(([k, v]) => `<option value="${k}"${cur === k ? ' selected' : ''}>По контракту: ${esc(v.name)} · ${esc(v.contract)}</option>`).join('')}
       <option value="__new">+ Другой исполнитель — контракта нет в списке</option></select>
     <div class="faint" style="font-size:12px">${list.length ? 'В списке — действующие контракты вашей организации.' : 'Действующих контрактов вашей организации в системе нет — выберите «своими силами» или укажите исполнителя.'} Сюда платформа автоматически направит заявку, если камера станет недоступна.</div></div>
-    <div id="newsup" class="grid3" hidden><label class="fld"><span>Исполнитель (организация)</span><input type="text" id="f-sname" placeholder="ООО «…»"></label>
-      <label class="fld"><span>Контакт для заявок</span><input type="text" id="f-scontact" placeholder="Телефон или e-mail диспетчера"></label>
-      <label class="fld"><span>Контракт (необязательно)</span><input type="text" id="f-scontract" placeholder="№ и дата"></label></div>`;
+    <div id="newsup" class="newsup" hidden>
+      <div class="grid2"><label class="fld"><span>Исполнитель (организация)</span><input type="text" id="f-sname" placeholder="ООО «…»"></label>
+      <label class="fld"><span>E-mail для заявок о неисправности</span><input type="email" id="f-scontact" placeholder="например, service@firma.ru" autocomplete="off"></label></div>
+      <div class="grid2"><label class="fld"><span>№ контракта (необязательно)</span><input type="text" id="f-scnum" placeholder="например, 45-ТО"></label>
+      <label class="fld"><span>Дата контракта (необязательно)</span><input type="date" id="f-scdate"></label></div>
+      <div class="faint" style="font-size:12px">На этот e-mail платформа отправит заявку, если камера станет недоступна.</div></div>`;
 }
 function mInstall(id) {
   window._factFrame = null;
@@ -2575,7 +2581,7 @@ document.addEventListener('click', e => {
     case 'm-install': {
       const c = cam(v);
       const val = id => $('#' + id).value;
-      const r = call('POST', `/api/v1/cameras/${c.num}/esv-data`, () => API.install(v, {model: val('f-model'), newModel: {vendor: val('f-nvendor').trim(), name: val('f-nname').trim(), type: val('f-ntype'), spec: !!($('#f-nspec').files && $('#f-nspec').files.length)}, esvType: val('f-etype'), factFrame: window._factFrame || null, installDate: val('f-date'), ip: val('f-ip').trim(), rtsp: val('f-rtsp').trim(), factAz: +val('f-az'), factFov: +val('f-fov'), group: val('f-group'), descr: val('f-descr'), info: val('f-info'), pass: {serial: val('f-serial').trim(), fw: val('f-fw').trim(), height: val('f-height') === '' ? null : +val('f-height'), placeDescr: val('f-place').trim(), azErr: $('#f-azerr') ? +val('f-azerr') : null, telem: !!($('#f-telem') && $('#f-telem').checked)}, support: val('f-support'), newSupport: {name: val('f-sname').trim(), contact: val('f-scontact').trim(), contract: val('f-scontract').trim()}, user: '', password: '', ptzUser: val('f-puser'), ptzPassword: val('f-ppass')}));
+      const r = call('POST', `/api/v1/cameras/${c.num}/esv-data`, () => API.install(v, {model: val('f-model'), newModel: {vendor: val('f-nvendor').trim(), name: val('f-nname').trim(), type: val('f-ntype'), spec: !!($('#f-nspec').files && $('#f-nspec').files.length)}, esvType: val('f-etype'), factFrame: window._factFrame || null, installDate: val('f-date'), ip: val('f-ip').trim(), rtsp: val('f-rtsp').trim(), factAz: +val('f-az'), factFov: +val('f-fov'), group: val('f-group'), descr: val('f-descr'), info: val('f-info'), pass: {serial: val('f-serial').trim(), fw: val('f-fw').trim(), height: val('f-height') === '' ? null : +val('f-height'), placeDescr: val('f-place').trim(), azErr: $('#f-azerr') ? +val('f-azerr') : null, telem: !!($('#f-telem') && $('#f-telem').checked)}, support: val('f-support'), newSupport: {name: val('f-sname').trim(), contact: val('f-scontact').trim(), num: val('f-scnum').trim(), date: val('f-scdate')}, user: '', password: '', ptzUser: val('f-puser'), ptzPassword: val('f-ppass')}));
       window._factFrame = null;
       if (r) { toast(r.ready ? `${c.num}: данные для ЕСВ приняты — камера передана РЯ на подключение` : r.pendingModel ? `${c.num}: данные сохранены, новая модель отправлена на проверку в РЯ` : `${c.num}: ${r.accepted ? 'не хватает данных: ' + r.missing.join(', ') : 'модель не прошла проверку'}`, r.ready || r.pendingModel ? 'ok' : 'bad'); afterChange(); }
       break; }
