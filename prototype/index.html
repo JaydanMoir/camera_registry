@@ -1095,11 +1095,11 @@ const API = {
     const ptz = !!modelById(f.model).ptz;
     if (!f.installDate) bad('VALIDATION', 'Укажите дату установки');
     const pr = parseRtsp(f.rtsp);
-    if (!pr) bad('VALIDATION', 'RTSP-ссылка указана неверно — она начинается с rtsp:// (прямые косые черты). Пример: rtsp://admin:пароль@10.52.84.41:554/cam/realmonitor?channel=1&subtype=0');
+    if (!pr) bad('VALIDATION', 'Ссылка на видеопоток указана неверно — она начинается с rtsp:// (прямые косые черты). Пример: rtsp://10.52.84.41:554/cam/realmonitor?channel=1&subtype=0');
     if (!f.ip) f.ip = pr.host;
-    if (!/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.test(f.ip) || f.ip.split('.').some(x => +x > 255)) bad('VALIDATION', f.ip === pr.host ? `В RTSP-ссылке адрес «${pr.host}» — это не IP-адрес. Укажите IP камеры в «Дополнительно»` : 'IP-адрес камеры в «Дополнительно» указан неверно');
+    if (!/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.test(f.ip) || f.ip.split('.').some(x => +x > 255)) bad('VALIDATION', f.ip === pr.host ? `Укажите IP-адрес камеры: в ссылке адрес «${pr.host}», это не IP` : 'IP-адрес камеры указан неверно');
     const keepSecret = pr.pass === '••••';
-    if (keepSecret && !(c.secret && c.secret.given)) bad('VALIDATION', 'Введите RTSP-ссылку полностью, с паролем');
+    if (keepSecret && !(c.secret && c.secret.given) && !f.password) bad('VALIDATION', 'Укажите пароль камеры');
     if (pr.user && pr.pass && !keepSecret) { f.user = pr.user; f.password = pr.pass; }
     if (!(f.factAz >= 0 && f.factAz <= 359) || !(f.factFov >= 10 && f.factFov <= 360)) bad('VALIDATION', 'Проверьте фактический азимут (0–359°) и угол обзора');
     if (!f.descr.trim()) bad('VALIDATION', 'Добавьте описание: где размещена камера и что она видит');
@@ -1121,7 +1121,7 @@ const API = {
     if (f.password || f.user) {
       if (!f.user.trim() || !f.password) bad('VALIDATION', 'Укажите и имя пользователя, и пароль');
       if (weak(f.password)) f.weakPass = true;
-    } else if (!had) bad('VALIDATION', 'RTSP-ссылка должна содержать логин и пароль: rtsp://логин:пароль@адрес:порт/…');
+    } else if (!had) bad('VALIDATION', 'Укажите логин и пароль камеры');
 
     if (ptz) {
       if (f.ptzPassword || f.ptzUser) { if (!f.ptzUser.trim() || !f.ptzPassword) bad('VALIDATION', 'Для PTZ укажите и имя пользователя, и пароль'); if (weak(f.ptzPassword)) f.weakPass = true; }
@@ -1197,6 +1197,29 @@ const API = {
     hist(c, `Добавлена в перечень камер (${S.agreements[agId].title}) → «Соглашение»`);
     notify('owner', `${c.num} добавлена в перечень камер (${S.agreements[agId].title}). Следующий шаг — проверка потока и подключение (РЯ).`, {cam: c.id});
     audit('Включена в соглашение', c.num);
+  },
+  /* проверка потока при вводе данных: запрос идёт с сервера платформы, учётные данные не сохраняются */
+  streamPrecheck(camId, f) {
+    const c = API.getCamera(camId);
+    if (S.role !== 'owner') deny();
+    const pr = parseRtsp(f.rtsp || '');
+    if (!pr) bad('VALIDATION', 'Ссылка на видеопоток не распознана');
+    const ip = f.ip || pr.host, user = f.user || pr.user, pass = f.password || (pr.pass !== '••••' ? pr.pass : '');
+    const known = !pass && c.secret && c.secret.given;
+    const m = modelById(f.model) || M(c) || {};
+    const res = m.res && m.res[1] >= 1080 ? [1920, 1080] : (m.res || [1280, 720]);
+    const reach = /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\./.test(ip) || /^\d+\.\d+\.\d+\.\d+$/.test(ip);
+    const auth = !!user && (!!pass || known);
+    const bitrate = +(m.fps >= 25 ? 3.4 : 1.6).toFixed(1), codec = (m.codecs || ['H.264 Main'])[0];
+    const checks = [
+      ['Камера отвечает', reach, reach ? `${ip}, 14 мс` : `${ip} — адрес недоступен`],
+      ['Логин и пароль подходят', reach && auth, !user ? 'не указан логин' : (pass || known) ? 'авторизация пройдена' : 'не указан пароль'],
+    ];
+    if (reach && auth) checks.push(['Разрешение не ниже 1920×1080', res[0] >= 1920 && res[1] >= 1080, res.join('×')], ['25 кадров/с', (m.fps || 25) >= 25, (m.fps || 25) + ' к/с'], ['Кодек H.264 Main/High или H.265', /Main|High|H\.265/.test(codec), codec], ['Битрейт не ниже 2 Мбит/с', bitrate >= 2, bitrate + ' Мбит/с']);
+    const r = {at: S.clock, checks, ok: checks.every(x => x[1]), pre: true};
+    c.ownerCheck = r;
+    audit(`Проверка потока при вводе данных (esvcheck): ${r.ok ? 'пройдена' : 'не пройдена'}`, c.num);
+    return r;
   },
   streamCheck(camId) {
     if (S.role !== 'rya') deny('Проверку потока запускает оператор РЯ');
@@ -1711,7 +1734,7 @@ function ownerTasks() {
   for (const c of S.cameras.filter(c => c.org === org && c.rework)) t.push({k: 'warn', title: `${c.num}: «Ресурсы Ямала» вернули на исправление`, text: c.rework.reason, act: 'install', v: c.id, btn: 'Исправить данные'});
   const perm = S.cameras.filter(c => c.org === org && c.place === 'permitted').sort((a, b) => (a.permitUntil || '9').localeCompare(b.permitUntil || '9'));
   if (perm.length > 2) { const soon = perm.filter(c => c.permitUntil && wdLeft(c.permitUntil) <= 10).length; t.push({k: soon ? 'warn' : 'accent', title: `${perm.length} камер одобрены — смонтируйте и внесите данные`, text: `${perm.slice(0, 3).map(c => c.num + ' ' + c.name).join('; ')}${perm.length > 3 ? ` и ещё ${perm.length - 3}` : ''}. Данные вносятся подряд: после сохранения сразу открывается следующая камера.${soon ? ` У ${soon} одобрение истекает в ближайшие 10 р. д.` : ''}`, act: 'install', v: perm[0].id, btn: 'Внести данные'}); }
-  else for (const c of S.cameras.filter(c => c.org === org && c.place === 'permitted')) t.push({k: c.permitUntil && wdLeft(c.permitUntil) <= 10 ? 'warn' : 'accent', title: `${c.num} одобрена — смонтируйте камеру и внесите данные`, text: `${c.name}. После монтажа укажите модель, IP-адрес, RTSP-ссылку с паролем и кто обслуживает камеру.${c.permitUntil ? ' Одобрение действует до ' + fmtD(c.permitUntil) + '.' : ''}`, act: 'install', v: c.id, btn: 'Внести данные'});
+  else for (const c of S.cameras.filter(c => c.org === org && c.place === 'permitted')) t.push({k: c.permitUntil && wdLeft(c.permitUntil) <= 10 ? 'warn' : 'accent', title: `${c.num} одобрена — смонтируйте камеру и внесите данные`, text: `${c.name}. После монтажа укажите модель, IP-адрес, логин и пароль камеры, ссылку на поток и кто обслуживает камеру.${c.permitUntil ? ' Одобрение действует до ' + fmtD(c.permitUntil) + '.' : ''}`, act: 'install', v: c.id, btn: 'Внести данные'});
   for (const c of S.cameras.filter(c => c.org === org && c.place === 'installed' && !c.needsPassport && c.passport && !c.passport.accepted)) t.push({k: 'warn', title: `${c.num}: модель не прошла проверку по требованиям ЕСВ`, text: c.passport.issues.join('; '), act: 'install', v: c.id, btn: 'Исправить'});
   for (const c of S.cameras.filter(c => c.org === org && c.place === 'installed' && (c.needsPassport || stage2Missing(c).length))) t.push({k: 'info', title: `${c.num}${c.needsPassport ? ' импортирована из ЕСВ' : ''} — дозаполните данные для ЕСВ`, text: 'Не хватает: ' + stage2Missing(c).join(', '), act: 'install', v: c.id, btn: 'Дозаполнить'});
   return t;
@@ -1727,7 +1750,7 @@ function pageWelcome(org) {
     <section class="card"><div class="card-h"><h3>Что будет дальше</h3><span class="muted">от вас — заявление, данные после монтажа и один раз подпись соглашения</span></div><div class="card-b"><ol class="wsteps">
       ${step(1, 'Вы: заявление на размещение', 'сейчас · 10–15 минут', 'Точки на карте, направление обзора, назначение, фото места. Модель и пароли пока не нужны.')}
       ${step(2, 'ДРБ: решение по каждой камере', 'до 10 рабочих дней', 'Одобрит, вернёт на доработку с понятной причиной или откажет. Уведомление придёт сюда.')}
-      ${step(3, 'Вы: монтаж и данные для ЕСВ', 'в течение 6 месяцев после одобрения', 'Модель, IP-адрес, RTSP-ссылка с паролем, кто обслуживает камеру. Задача появится на главной.')}
+      ${step(3, 'Вы: монтаж и данные для ЕСВ', 'в течение 6 месяцев после одобрения', 'Модель, IP-адрес, логин и пароль камеры, ссылка на поток, кто обслуживает камеру. Задача появится на главной.')}
       ${step(4, '«Ресурсы Ямала»: соглашение и подключение', 'до 5 рабочих дней', 'С первой камерой подготовят соглашение — его подписывает ваша организация, один раз. Затем проверят поток и канал и добавят камеру в ЕСВ.')}
     </ol></div></section>
     <div class="callout info">Камеры организации, которые уже подключены к ЕСВ до запуска платформы, переносятся в реестр автоматически и появятся здесь с пометкой «импортирована из ЕСВ» — их останется только дозаполнить. Изменить или вывести камеру можно из её карточки, когда она появится в реестре.</div>`;
@@ -2163,7 +2186,7 @@ function pageHelp() {
     <table><thead><tr><th>Этап</th><th>Кто отвечает</th><th>Срок</th><th>Что происходит и зачем</th></tr></thead><tbody>
       <tr><td><b>1. Заявление</b></td><td>Владелец</td><td>—</td><td>Точка на карте, сектор обзора, назначение, эталонный кадр. <span class="why">Этого хватает ДРБ, чтобы решить, нужна ли камера здесь. Технические данные на этом этапе не нужны: камеры ещё нет.</span></td></tr>
       <tr><td><b>2. Решение ДРБ</b></td><td>ДРБ</td><td>10 раб. дней</td><td>Решение по каждой камере отдельно: одобрить, вернуть на доработку или отказать с причиной из справочника. Для назначения «общественная безопасность» сначала нужны ответы силового блока. <span class="why">Одно заявление — до 50 камер, но одна спорная камера не задерживает остальные.</span></td></tr>
-      <tr><td><b>3. Монтаж и данные для ЕСВ</b></td><td>Владелец</td><td>согласование действует 6 мес.</td><td>После монтажа: модель, RTSP-ссылка с логином и паролем (IP берётся из неё), фактический азимут и угол, описание, техобслуживание. Серийный номер и прошивку платформа получит по ONVIF (своими силами или по контракту). Канал до узла РМТКС указывают «Ресурсы Ямала». <span class="why">Пароль хранится в зашифрованном виде и в интерфейсе не показывается.</span></td></tr>
+      <tr><td><b>3. Монтаж и данные для ЕСВ</b></td><td>Владелец</td><td>согласование действует 6 мес.</td><td>После монтажа: модель, IP-адрес, логин и пароль камеры, ссылка на поток (RTSP), фактический азимут и угол, описание, техобслуживание. Серийный номер и прошивку платформа получит по ONVIF (своими силами или по контракту). Канал до узла РМТКС указывают «Ресурсы Ямала». <span class="why">Пароль хранится в зашифрованном виде и в интерфейсе не показывается.</span></td></tr>
       <tr><td><b>4. Соглашение с РЯ</b></td><td>«Ресурсы Ямала»</td><td rowspan="2">5 раб. дней на оба этапа</td><td>Камеру добавляют в перечень к соглашению организации. Паспорт СВН (приложение № 1) — это те же 10 полей, что уходят в ЕСВ; платформа формирует его из карточки. <span class="why">Так бумаги не расходятся с реестром.</span></td></tr>
       <tr><td><b>5. Проверка и добавление в ЕСВ</b></td><td>«Ресурсы Ямала»</td><td>Четыре пункта: карточка, видеопоток, канал, запись для ЕСВ. После этого кнопка «Добавить в ЕСВ» создаёт камеру в ЕСВ через API. <span class="why">Никто не переносит данные вручную из таблиц.</span></td></tr>
       <tr><td><b>6. В ЕСВ</b></td><td>—</td><td>—</td><td>Камера рабочая. Неисправность → заявка исполнителю техобслуживания. Изменение или вывод → новое заявление.</td></tr>
@@ -2192,7 +2215,7 @@ function pageHelp() {
     <h4>3. После одобрения</h4>
     <ol>
       <li>Смонтируйте камеру в течение 6 месяцев и нажмите «Внести данные» в задаче на главной. Камер много — «Сохранить и к следующей» открывает следующую, а «Заполнить как у другой камеры» подставляет модель, прошивку, высоту и техобслуживание.</li>
-      <li>RTSP-ссылку вставьте целиком, с логином и паролем, как её отдаёт камера. После сохранения пароль скрывается (<span class="num">rtsp://логин:••••@…</span>) и хранится отдельно.</li>
+      <li>IP-адрес, логин и пароль камеры — в отдельных полях, ссылка на поток — ниже. Можно вставить ссылку целиком, с логином и паролем: поля заполнятся сами. Пароль хранится в зашифрованном виде и больше не показывается.</li>
       <li>Модели нет в списке — выберите «Другая модель» и приложите спецификацию. «Ресурсы Ямала» проверят её и внесут в справочник.</li>
     </ol>
     <h4>4. Эксплуатация</h4>
@@ -2411,12 +2434,31 @@ function modal(title, body, foot) {
 function closeModal() { $$('.modal, .m-scrim').forEach(e => e.remove()); }
 function afterChange(keepCam = true) { closeModal(); render(); if (!keepCam) closeCam(); }
 
+let preTimer = 0;
+function runPrecheck(id, quiet) {
+  const val = x => ($('#' + x) || {}).value || '';
+  const f = {rtsp: val('f-rtsp').trim(), ip: val('f-ip').trim(), user: val('f-user').trim(), password: val('f-pass'), model: val('f-model')};
+  if (quiet && !(f.rtsp && (f.ip || parseRtsp(f.rtsp)) && f.user && (f.password || (cam(id).secret && cam(id).secret.given)))) return;
+  const c = cam(id), out = $('#precheck-out'); if (out) out.innerHTML = '<div class="faint" style="font-size:12.5px">Проверяем поток…</div>';
+  setTimeout(() => { const r = call('POST', `/api/v1/cameras/${c.num}/stream-precheck`, () => API.streamPrecheck(id, f)); const o = $('#precheck-out'); if (o) o.innerHTML = r ? streamBox(r) : ''; }, 400);
+}
 function rtspHint(v) {
-  if (!v.trim()) return 'IP-адрес камеры возьмём из ссылки';
+  if (!v.trim()) return 'Можно вставить ссылку целиком, с логином и паролем, — поля выше заполнятся сами';
   const pr = parseRtsp(v.trim());
-  if (!pr) return '⚠ Ссылка не распознана: нужен вид rtsp://логин:пароль@адрес:порт/путь';
-  const ip = /^\d{1,3}(\.\d{1,3}){3}$/.test(pr.host);
-  return `${ip ? 'IP камеры: ' + pr.host : '⚠ В ссылке не IP-адрес — укажите IP в «Дополнительно»'} · порт ${pr.port}${pr.user ? ' · логин ' + pr.user : ' · ⚠ нет логина'}${pr.pass ? '' : ' · ⚠ нет пароля'}`;
+  if (!pr) return '⚠ Ссылка не распознана: нужен вид rtsp://адрес:порт/путь';
+  return `Адрес потока ${pr.host}:${pr.port}` + (pr.pass === '••••' ? ' · пароль сохранён' : '');
+}
+/* ссылку с логином и паролем разбираем в поля, а в поле ссылки оставляем адрес без пароля */
+function splitRtspField() {
+  const r = $('#f-rtsp'); if (!r) return;
+  const pr = parseRtsp(r.value.trim()); if (!pr) return;
+  const ip = $('#f-ip'), u = $('#f-user'), pw = $('#f-pass');
+  if (ip && !ip.value.trim() && /^\d{1,3}(\.\d{1,3}){3}$/.test(pr.host)) ip.value = pr.host;
+  if (pr.user && pr.pass && pr.pass !== '••••') {
+    if (u) u.value = pr.user; if (pw) pw.value = pr.pass;
+    r.value = r.value.trim().replace(/^rtsp:\/\/[^@\/]+@/i, 'rtsp://');
+    const h = $('#rtsp-hint'); if (h) h.textContent = rtspHint(r.value) + ' · логин и пароль перенесены в поля выше';
+  }
 }
 function supportFields(c) {
   const cur = c.support || ORGS[c.org].support, list = orgContractors(c.org);
@@ -2450,7 +2492,12 @@ function mInstall(id) {
       <label class="fld"><span>Спецификация производителя (PDF или фото)</span><input type="file" id="f-nspec" accept="application/pdf,image/*"></label>
       <div class="faint" style="font-size:12px">Модель уйдёт на проверку в «Ресурсы Ямала»: РЯ сверит спецификацию с требованиями ЕСВ и внесёт модель в справочник. До этого камеру нельзя включить в соглашение.</div>
     </div>
-    <label class="fld"><span>RTSP URL — полностью, с логином и паролем${c.rtsp ? ' (пароль скрыт; чтобы сменить — введите ссылку заново)' : ''}</span><input type="text" id="f-rtsp" value="${esc(c.rtsp || '')}" autocomplete="off" placeholder="rtsp://admin:пароль@10.52.84.41:554/cam/realmonitor?channel=1&subtype=0"><small id="rtsp-hint" class="faint" style="font-size:12px">${rtspHint(c.rtsp || '')}</small></label>
+    <div class="grid3"><label class="fld"><span>IP-адрес камеры</span><input type="text" id="f-ip" value="${esc(c.ip || '')}" placeholder="10.52.84.41" autocomplete="off"></label>
+    <label class="fld"><span>Логин</span><input type="text" id="f-user" value="${esc(sec.given ? (parseRtsp(c.rtsp || '') || {}).user || '' : '')}" placeholder="admin" autocomplete="off"></label>
+    <label class="fld"><span>Пароль</span><input type="password" id="f-pass" autocomplete="new-password" placeholder="${sec.given ? 'задан — не меняйте, если прежний' : ''}"></label></div>
+    <label class="fld"><span>Ссылка на видеопоток (RTSP)</span><input type="text" id="f-rtsp" value="${esc(c.rtsp || '')}" autocomplete="off" placeholder="rtsp://10.52.84.41:554/cam/realmonitor?channel=1&subtype=0"><small id="rtsp-hint" class="faint" style="font-size:12px">${rtspHint(c.rtsp || '')}</small></label>
+    <div class="row" style="gap:8px"><button class="btn sm" type="button" data-act="precheck" data-v="${c.id}">Проверить поток через esvcheck</button><span class="faint" style="font-size:12px">запускается сам, когда заполнены IP, логин, пароль и ссылка; запрос идёт с сервера платформы</span></div>
+    <div id="precheck-out">${c.ownerCheck ? streamBox(c.ownerCheck) : ''}</div>
     <div class="grid2"><label class="fld"><span>Фактический азимут, °</span><input type="number" id="f-az" value="${c.factAz ?? c.az}" min="0" max="359"></label>
     <label class="fld"><span>Фактический угол обзора, °</span><input type="number" id="f-fov" value="${c.factFov ?? c.fov}" min="10" max="360"></label></div>
     <label class="fld"><span>Описание — где размещена камера и что она видит</span><input type="text" id="f-descr" value="${esc(c.descr || [mountText(c) !== '—' ? mountText(c).toLowerCase() : '', c.name].filter(Boolean).join(', '))}" placeholder="Например: опора освещения у дома 40, обзор двора и детской площадки"></label>
@@ -2458,7 +2505,7 @@ function mInstall(id) {
     ${supportFields(c)}
     <details class="passbox"><summary><b>Дополнительно</b> — уже заполнено из заявления, менять обычно не нужно</summary>
       <div class="grid2"><label class="fld"><span>Тип камеры (классификатор ЕСВ)</span><select id="f-etype">${ESV_TYPES.map(t => `<option${(c.esvType || (M(c) && M(c).ptz ? 'Внешняя поворотная' : 'Внешняя')) === t ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
-      <label class="fld"><span>IP-адрес камеры — если отличается от адреса в RTSP-ссылке</span><input type="text" id="f-ip" value="${esc(c.ip || '')}" placeholder="по умолчанию — из RTSP-ссылки"></label></div>
+</div>
       <div class="grid2"><label class="fld"><span>Серийный номер — необязательно</span><input type="text" id="f-serial" value="${esc((c.pass && c.pass.serial) || '')}" placeholder="подтянется по ONVIF"></label>
       <label class="fld"><span>Версия прошивки — необязательно</span><input type="text" id="f-fw" value="${esc((c.pass && c.pass.fw) || '')}" placeholder="подтянется по ONVIF"></label></div>
       <label class="fld"><span>Группа камер в ЕСВ</span><select id="f-group">${groups.map(g => `<option${(c.group || groups[0]) === g ? ' selected' : ''}>${esc(g)}</option>`).join('')}</select></label>
@@ -2466,7 +2513,7 @@ function mInstall(id) {
     </details>
     <div class="grid2" id="ptzbox"${M(c) && M(c).ptz ? '' : ' hidden'}><label class="fld"><span>Логин для управления поворотом (PTZ)</span><input type="text" id="f-puser" autocomplete="off" placeholder="${sec.ptz ? 'переданы' : ''}"></label>
     <label class="fld"><span>Пароль для управления поворотом (PTZ)</span><input type="password" id="f-ppass" autocomplete="new-password"></label></div>
-    <div class="faint" style="font-size:12px">После сохранения пароль из ссылки шифруется и скрывается: в карточке ссылка показывается как rtsp://логин:••••@… Принимается любая RTSP-ссылка; если пароль похож на заводской, система только предупредит. Глубина архива единая для всех камер ЕСВ (${ESV_ARCHIVE_DAYS} суток) и не вводится.</div>`,
+    <div class="faint" style="font-size:12px">После сохранения пароль шифруется и больше не показывается; в карточке ссылка выглядит как rtsp://логин:••••@… Если пароль похож на заводской, система предупредит. Глубина архива единая для всех камер ЕСВ (${ESV_ARCHIVE_DAYS} суток) и не вводится.</div>`,
     `<button class="btn" data-act="mclose">Отмена</button>${nextQ.length ? `<button class="btn" data-act="m-install" data-v="${c.id}" data-next="1">Сохранить и к следующей (${nextQ.length})</button>` : ''}<button class="btn pri" data-act="m-install" data-v="${c.id}">Сохранить</button>`);
   if (UI.copyFrom && cam(UI.copyFrom) && !(c.passport && c.passport.model)) copyInstallFrom(UI.copyFrom);
 }
@@ -2570,7 +2617,7 @@ function mEsvAdd(id) {
 function reopenEsv(id) { const m = $('.modal'), sc = m ? m.scrollTop : 0; closeModal(); mEsvAdd(id); const n = $('.modal'); if (n) n.scrollTop = sc; }
 function streamBox(r) {
   if (!r) return '<div class="faint" style="font-size:12.5px">Поток ещё не проверялся.</div>';
-  return `<div class="callout ${r.ok ? 'ok' : 'bad'}"><b>${r.ok ? 'Поток соответствует требованиям ЕСВ' : 'Поток не соответствует требованиям'}</b> <span class="faint">· ${fmtDT(r.at)}</span>
+  return `<div class="callout ${r.ok ? 'ok' : 'bad'}"><b>${r.ok ? (r.pre ? 'Поток открывается и подходит для ЕСВ' : 'Поток соответствует требованиям ЕСВ') : (r.pre ? 'Поток не открылся или не подходит — проверьте данные' : 'Поток не соответствует требованиям')}</b> <span class="faint">· ${fmtDT(r.at)}</span>
     <div class="checks" style="margin-top:6px">${r.checks.map(x => `<div class="chk ${x[1] ? 'ok' : 'bad'}"><span class="ic">${x[1] ? '✓' : '✕'}</span><span>${esc(x[0])} <span class="faint">· ${esc(x[2])}</span></span></div>`).join('')}</div></div>`;
 }
 /* паспорт СВН = приложение № 1 к соглашению = данные для добавления в ЕСВ: один набор полей (по предложению РЯ) */
@@ -2719,6 +2766,7 @@ document.addEventListener('click', e => {
     case 'wizsubmit': { UI.wizUndo = null; const re = !!S.draft.appId; const a = call('POST', re ? `/api/v1/applications/${S.draft.appId}/resubmit` : '/api/v1/applications', () => API.submitDraft()); if (a) { toast(re ? `Заявление ${a.id} подано повторно` : `Заявление ${a.id} подано: ${a.items.length} кам.`); UI.appId = a.id; UI.page = 'app'; delete VIEWS.wiz; render(); } break; }
     case 'mclose': closeModal(); window._factFrame = null; break;
     case 'passdoc': mPassDoc(v); break;
+    case 'precheck': runPrecheck(v, false); break;
     case 'passdl': { const c = cam(v); saveFileAs(`Паспорт_СВН_${c.num}.html`, passDocHTML(c), 'text/html', 'Паспорт сохранён'); break; }
     case 'annexdl': { const ag = S.agreements[v], cs = S.cameras.filter(c => c.agreement === v && derived(c) !== 'arch'); saveFileAs(`Приложение_1_${ag.title.replace(/[^0-9А-Яа-яA-Za-z]+/g, '_')}.html`, annexHTML(v, cs), 'text/html', 'Приложение № 1 сохранено'); break; }
     case 'chan': { const c = cam(v); const r = call('POST', `/api/v1/cameras/${c.num}/channel-check`, () => API.channelCheck(v, {link: {mode: $('#f-lmode').value, node: $('#f-lnode').value, operator: $('#f-lop').value.trim()}, cls: $('#f-cls').value, bw: +$('#f-bw').value, rtt: +$('#f-rtt').value, jitter: +$('#f-jit').value, loss: +$('#f-loss').value})); if (r) { UI.lastChan = {link: {...c.link}, cls: r.cls, bw: r.bw, rtt: r.rtt, jitter: r.jitter, loss: r.loss}; toast(r.ok ? 'Канал соответствует нормам' : 'Канал не соответствует нормам', r.ok ? 'ok' : 'bad'); reopenEsv(v); } break; }
@@ -2733,7 +2781,7 @@ document.addEventListener('click', e => {
     case 'm-install': {
       const c = cam(v);
       const val = id => $('#' + id).value;
-      const r = call('POST', `/api/v1/cameras/${c.num}/esv-data`, () => API.install(v, {model: val('f-model'), newModel: {vendor: val('f-nvendor').trim(), name: val('f-nname').trim(), type: val('f-ntype'), spec: !!($('#f-nspec').files && $('#f-nspec').files.length)}, esvType: val('f-etype'), factFrame: window._factFrame || null, installDate: val('f-date'), ip: val('f-ip').trim(), rtsp: val('f-rtsp').trim(), factAz: +val('f-az'), factFov: +val('f-fov'), group: val('f-group'), descr: val('f-descr'), info: val('f-info'), pass: {serial: val('f-serial').trim(), fw: val('f-fw').trim()}, support: val('f-support'), newSupport: {name: val('f-sname').trim(), contact: val('f-scontact').trim(), num: val('f-scnum').trim(), date: val('f-scdate')}, user: '', password: '', ptzUser: val('f-puser'), ptzPassword: val('f-ppass')}));
+      const r = call('POST', `/api/v1/cameras/${c.num}/esv-data`, () => API.install(v, {model: val('f-model'), newModel: {vendor: val('f-nvendor').trim(), name: val('f-nname').trim(), type: val('f-ntype'), spec: !!($('#f-nspec').files && $('#f-nspec').files.length)}, esvType: val('f-etype'), factFrame: window._factFrame || null, installDate: val('f-date'), ip: val('f-ip').trim(), rtsp: val('f-rtsp').trim(), factAz: +val('f-az'), factFov: +val('f-fov'), group: val('f-group'), descr: val('f-descr'), info: val('f-info'), pass: {serial: val('f-serial').trim(), fw: val('f-fw').trim()}, support: val('f-support'), newSupport: {name: val('f-sname').trim(), contact: val('f-scontact').trim(), num: val('f-scnum').trim(), date: val('f-scdate')}, user: val('f-user').trim(), password: val('f-pass'), ptzUser: val('f-puser'), ptzPassword: val('f-ppass')}));
       window._factFrame = null;
       if (r && el.dataset.next) { UI.copyFrom = r.ready ? c.id : UI.copyFrom; const nx = S.cameras.filter(x => x.org === c.org && x.place === 'permitted' && x.id !== c.id).sort((a, b) => (a.permitUntil || '9').localeCompare(b.permitUntil || '9'))[0]; toast(r.ready ? `${c.num}: данные приняты` : `${c.num}: сохранено, не хватает: ${r.missing.join(', ')}`, r.ready ? 'ok' : 'bad'); closeModal(); render(); if (nx) mInstall(nx.id); break; }
       if (r) { UI.copyFrom = null; toast(r.ready ? `${c.num}: данные для ЕСВ приняты — камера передана РЯ на подключение` : r.pendingModel ? `${c.num}: данные сохранены, новая модель отправлена на проверку в РЯ` : `${c.num}: ${r.accepted ? 'не хватает данных: ' + r.missing.join(', ') : 'модель не прошла проверку'}`, r.ready || r.pendingModel ? 'ok' : 'bad'); afterChange(); }
@@ -2761,7 +2809,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('input', e => {
   const t = e.target;
-  if (t.id === 'f-rtsp') { const h = $('#rtsp-hint'); if (h) h.textContent = rtspHint(t.value); return; }
+  if (t.id === 'f-rtsp') { const h = $('#rtsp-hint'); if (h) h.textContent = rtspHint(t.value); if (/@/.test(t.value) && /^rtsp:\/\/[^@\/]+:[^@\/]+@[^\/]+\//i.test(t.value)) splitRtspField(); return; }
   if (t.id === 'regSearch') { UI.regSearch = t.value; const pos = t.selectionStart; render(); const s = $('#regSearch'); s.focus(); s.setSelectionRange(pos, pos); return; }
   if (t.dataset.wiz && S.draft) {
     const it = S.draft.items[UI.wizSel]; const k = t.dataset.wiz;
@@ -2779,6 +2827,8 @@ document.addEventListener('change', e => {
   if (t.id === 'f-lmode') { const b = $('#lopbox'); if (b) b.hidden = t.value !== 'vpn'; return; }
   if (t.id === 'f-ownerorg') { S.ownerOrg = t.value; setOwnerOrg(t.value); UI.page = 'home'; UI.camId = null; $('#layer').innerHTML = ''; for (const k in VIEWS) delete VIEWS[k]; save(); render(); return; }
   if (t.id === 'f-cfrom' || t.id === 'f-cto') { if (t.value) { if (t.id === 'f-cfrom') UI.connFrom = t.value; else UI.connTo = t.value; render(); } return; }
+  if (t.id === 'f-rtsp') { splitRtspField(); }
+  if (['f-rtsp', 'f-ip', 'f-user', 'f-pass', 'f-model'].includes(t.id)) { const b = $('[data-act=precheck]'); if (b) { clearTimeout(preTimer); preTimer = setTimeout(() => runPrecheck(b.dataset.v, true), 300); } if (t.id !== 'f-model') return; }
   if (t.id === 'f-support') { const b = $('#newsup'); if (b) b.hidden = t.value !== '__new'; return; }
   if (t.id === 'f-ag') { const b = $('#newag'); if (b) b.hidden = t.value !== '__new'; return; }
   if (t.id === 'f-fact' && t.files && t.files[0]) {
