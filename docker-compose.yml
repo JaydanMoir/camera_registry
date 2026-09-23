@@ -1,0 +1,14 @@
+# Для Dokploy (сервис Compose) или для любого сервера с Docker: docker compose up -d
+services:
+  camera-registry:
+    build: .
+    image: camera-registry:latest
+    restart: unless-stopped
+    expose:
+      - "80"            # в Dokploy домен и HTTPS настраиваются на порт 80
+    # ports: ["8080:80"]   # раскомментировать для запуска без Dokploy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
