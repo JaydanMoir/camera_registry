@@ -296,9 +296,11 @@ figure{margin:0}
 .slider{display:grid;grid-template-columns:120px 1fr 64px;gap:10px;align-items:center;font-size:13px}
 .slider input[type=range]{width:100%;accent-color:var(--accent)}
 .slider output{font-family:var(--f-mono);font-size:12.5px;text-align:right}
-.refimg{display:grid;grid-template-columns:160px 1fr;gap:12px;align-items:center}
-.refimg img{width:160px;aspect-ratio:16/10;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
-.refimg .ph{width:160px;aspect-ratio:16/10;border-radius:8px;border:1px dashed var(--line);display:grid;place-items:center;color:var(--faint);font-size:12px;text-align:center}
+.refimg{display:grid;grid-template-columns:minmax(0,140px) minmax(0,1fr);gap:12px;align-items:center}
+.refimg .row{flex-direction:column;align-items:stretch;gap:6px}
+.fld>span{overflow-wrap:anywhere}
+.refimg img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.refimg .ph{width:100%;aspect-ratio:16/10;border-radius:8px;border:1px dashed var(--line);display:grid;place-items:center;color:var(--faint);font-size:12px;text-align:center}
 
 /* app review */
 .pos{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
