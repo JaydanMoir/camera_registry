@@ -170,7 +170,7 @@ tr.sel td{background:var(--accent-soft)}
 /* map */
 .split{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;align-items:start}
 .split.eq{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
-.map{position:relative;background:var(--land);border:1px solid var(--line);border-radius:14px;overflow:hidden;height:min(64vh,620px);touch-action:none;user-select:none}
+.map{position:relative;background:var(--land);border:1px solid var(--line);border-radius:14px;overflow:hidden;height:max(460px,calc(100vh - 130px));touch-action:none;user-select:none}
 .map svg{width:100%;height:100%;display:block;cursor:grab}
 .map.placing svg{cursor:crosshair}
 .map-zoom{position:absolute;right:10px;top:10px;display:grid;gap:4px}
@@ -254,7 +254,9 @@ figure{margin:0}
 @media (prefers-reduced-motion: reduce){.toast{animation:none}}
 
 /* wizard */
-.wiz{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;align-items:start}
+.wiz{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(360px,1fr);gap:16px;align-items:start}
+.wiz>div:first-child,.split>div:last-child>.map,.split>.map{position:sticky;top:96px}
+.wiz .map{height:max(460px,calc(100vh - 120px))}
 .items{display:flex;gap:6px;flex-wrap:wrap}
 .item-tab{border:1px solid var(--line);background:var(--surface);border-radius:9px;font-size:12.5px;display:inline-flex;align-items:center}
 .item-tab>button{border:0;background:none;font:inherit;color:inherit;cursor:pointer;display:inline-flex;gap:6px;align-items:center;padding:6px 4px 6px 10px}
@@ -340,6 +342,8 @@ figure{margin:0}
 
 @media (max-width:1100px){
   .split,.split.eq,.wiz,.two{grid-template-columns:1fr}
+  .map,.wiz .map{height:70vh}
+  .wiz>div:first-child{position:static}
   .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:860px){
@@ -392,7 +396,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const TZ = 'Asia/Yekaterinburg';
 const fmtD = iso => iso ? new Date(iso).toLocaleDateString('ru-RU', {timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric'}) : '—';
 const fmtDT = iso => iso ? new Date(iso).toLocaleString('ru-RU', {timeZone: TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) : '—';
-const STORE_KEY = 'erk-prototype-v10';
+const STORE_KEY = 'erk-prototype-v11';
 
 /* ---------- справочники ---------- */
 const ORGS = {
@@ -694,6 +698,12 @@ const ESV = {none: ['Не подключена','mute'], agreement: ['Согла
 const DERIVED = {cand: ['Кандидат','info'], work: ['Рабочая','ok'], fault: ['Неисправна','bad'], arch: ['Архив','mute']};
 const APP_ST = {draft: ['Черновик','mute'], submitted: ['Подано','info'], security: ['Силовой блок','warn'], review: ['На рассмотрении','accent'], rework: ['На доработке','warn'], done: ['Рассмотрено','ok'], withdrawn: ['Отозвано','mute']};
 const KIND = {place: 'Размещение', change: 'Изменение', retire: 'Вывод'};
+/* основание установки — перечень из проекта регламента ДРБ (п. 2.1) */
+const BASES = ['Антитеррористическая защищённость объекта', 'Ходатайство правоохранительных органов', 'Ходатайство спасательных служб', 'Подключение юридического лица', 'Место массового пребывания людей', 'Место пребывания несовершеннолетних', 'Место повышенной аварийности', 'Иное'];
+const MOUNTS = ['Опора освещения', 'Стена здания', 'Крыша здания', 'Внутри помещения', 'Другое'];
+const BASIS_BY_PURPOSE = {'Общественная безопасность': 'Место массового пребывания людей', 'Образование': 'Место пребывания несовершеннолетних', 'Безопасность дорожного движения': 'Место повышенной аварийности', 'Транспорт': 'Антитеррористическая защищённость объекта'};
+const basisText = c => c.basis ? c.basis + (c.basis === 'Иное' && c.basisNote ? ': ' + c.basisNote : '') : '—';
+const mountText = c => c.mount ? (c.mount === 'Другое' ? (c.mountNote || 'Другое') : c.mount) : '—';
 const CHANGE_F = {name: ['Наименование', v => v], az: ['Азимут', v => v + '°'], fov: ['Угол обзора', v => v + '°'], cls: ['Класс', v => CLS[v] || v], purpose: ['Назначение', v => v], ai: ['Целевой ИИ', v => v]};
 const changeText = d => Object.entries(d).map(([k, [o, n]]) => `${CHANGE_F[k][0].toLowerCase()}: ${CHANGE_F[k][1](o)} → ${CHANGE_F[k][1](n)}`).join('; ');
 const derived = c => (c.place === 'retired' || c.place === 'rejected') ? 'arch' : (c.place === 'installed' && c.esv === 'connected') ? 'work' : (c.place === 'installed' && c.esv === 'suspended') ? 'fault' : 'cand';
@@ -721,7 +731,7 @@ const groupOf = c => c.group || (c.place === 'installed' ? `${ORGS[c.org].mask} 
 const ctypeOf = c => M(c) ? (M(c).ptz ? 'Поворотная (PTZ)' : 'Фиксированная') : '—';
 function districtOf(x, y) { return 'ГО г. Ноябрьск'; }
 /* Этап 1 — заявление: что владелец вносит при планировании */
-const STAGE1 = ['Краткое наименование', 'Широта и долгота (точка на карте)', 'Район и адрес установки', 'Планируемый азимут и угол обзора', 'Тип камеры (классификатор ЕСВ)', 'Класс, назначение, целевой ИИ', 'Эталонный кадр'];
+const STAGE1 = ['Краткое наименование', 'Основание установки', 'Место установки (опора, стена, крыша…)', 'Широта и долгота (точка на карте)', 'Район и адрес установки', 'Планируемый азимут и угол обзора', 'Тип камеры (классификатор ЕСВ)', 'Класс, назначение, целевой ИИ', 'Эталонный кадр'];
 /* Этап 2 — после одобрения, для подключения к ЕСВ: минимум ЕСВ + наш минимум */
 const isOutdoor = c => /^Внешняя/.test(c.esvType || 'Внешняя');
 const STAGE2 = [
@@ -748,11 +758,11 @@ const GROUPS = [
   {k: 'state', t: 'Состояние', who: 'система', cols: [
     col('derived', 'Состояние', c => DERIVED[derived(c)][0]), col('place', 'Размещение', c => PLACE[placeKey(c)][0]), col('esv', 'Подключение к ЕСВ', c => ESV[c.esv][0])]},
   {k: 'purpose', t: 'Назначение', who: 'владелец, уточняет ДРБ', cols: [
-    col('cls', 'Класс', c => CLS[c.cls]), col('ai', 'Целевой ИИ', c => c.ai), col('purpose', 'Назначение', c => c.purpose),
+    col('cls', 'Класс', c => CLS[c.cls]), col('ai', 'Целевой ИИ', c => c.ai), col('purpose', 'Назначение', c => c.purpose), col('basis', 'Основание установки', basisText), col('basisDoc', 'Подтверждающий документ', c => c.basisDoc || 'не приложен', {card: 1}),
     col('priority', 'Приоритет', c => c.priority || (c.purpose === 'Общественная безопасность' ? 'Высокий' : 'Обычный')),
     col('public', 'Общедоступна', c => yn(c.public), {card: 1}), col('restricted', 'Ограниченный доступ', c => yn(c.restricted), {card: 1})]},
   {k: 'loc', t: 'Место', who: 'владелец', cols: [
-    col('district', 'Район', c => districtOf(c.x, c.y)), col('address', 'Адрес установки', c => c.address), col('fias', 'ФИАС здания', c => c.fias || '—', {mono: 1}), col('placeDescr', 'Описание места размещения', c => c.pass?.placeDescr || '—', {card: 1}),
+    col('district', 'Район', c => districtOf(c.x, c.y)), col('address', 'Адрес установки', c => c.address), col('fias', 'ФИАС здания', c => c.fias || '—', {mono: 1}), col('mount', 'Место установки', mountText), col('placeDescr', 'Описание места размещения', c => c.pass?.placeDescr || '—', {card: 1}),
     col('lat', 'Широта', c => toLatLon(c.x, c.y)[0].toFixed(6), {mono: 1}), col('lon', 'Долгота', c => toLatLon(c.x, c.y)[1].toFixed(6), {mono: 1}),
     col('az', 'Азимут, °', c => c.factAz ?? c.az, {mono: 1}), col('fov', 'Угол обзора, °', c => c.factFov ?? c.fov, {mono: 1})]},
   {k: 'equip', t: 'Оборудование', who: 'владелец', cols: [
@@ -791,6 +801,7 @@ function seed() {
   const mk = (n, org, x, y, az, fov, range, cls, ai, purpose, place, esv, name, extra = {}) => {
     const id = 'c' + n;
     const c = {id, num: 'NOY-' + String(n).padStart(5, '0'), org, x, y, az, fov, range, cls, ai, purpose, place, esv, name,
+      basis: BASIS_BY_PURPOSE[purpose] || 'Место массового пребывания людей', basisNote: '', basisDoc: n % 4 === 1 ? `Ходатайство_${n}.pdf` : null, mount: n % 5 === 2 ? 'Стена здания' : 'Опора освещения', mountNote: '',
       address: addressAt(x, y), fias: geoAt(x, y).fias, fullName: `${ORGS[org].mask} ${name}`, priority: null, restricted: false,
       passport: null, needsPassport: false, esvId: null, eksId: null, agreement: null, secret: null, availability: null,
       retireApproved: false, history: [], apps: [], ...extra};
@@ -806,7 +817,7 @@ function seed() {
         c.readyAt = c.readyAt || '2025-07-16T05:00:00.000Z';
         c.secret = c.secret || {given: true, date: '2025-07-15', changed: '2025-07-15'};
         c.availability = c.availability ?? +(97 + ((n * 37) % 30) / 10).toFixed(1);
-        c.connectedAt = c.connectedAt || '2025-07-18T06:00:00.000Z';
+        c.connectedAt = c.connectedAt || new Date(Date.UTC(2025, 6 + (n * 4) % 15, 3 + (n * 7) % 24, 6)).toISOString();
       }
     }
     c.history.push({t: extra.created || '2025-06-02T06:00:00.000Z', who: 'Система', text: extra.imported ? 'Импортирована из ЕСВ (перенос из ЕКС)' : 'Создана по заявлению'});
@@ -963,7 +974,7 @@ const API = {
       if (!a || a.status !== 'rework') conflict('BAD_STATE', 'Заявление не на доработке');
       for (const it of d.items) {
         const c = cam(it.camId);
-        Object.assign(c, {x: it.x, y: it.y, az: it.az, fov: it.fov, range: it.range, esvType: it.esvType || c.esvType, cls: it.cls, purpose: it.purpose, ai: it.ai, name: it.name, fullName: `${ORGS[org].mask} ${it.name}`, address: itemGeo(it).addr, fias: itemGeo(it).fias, refUpload: it.refUpload || c.refUpload, refSeed: it.refSeed || c.refSeed});
+        Object.assign(c, {x: it.x, y: it.y, az: it.az, fov: it.fov, range: it.range, esvType: it.esvType || c.esvType, cls: it.cls, purpose: it.purpose, ai: it.ai, name: it.name, fullName: `${ORGS[org].mask} ${it.name}`, address: itemGeo(it).addr, fias: itemGeo(it).fias, basis: it.basis, basisNote: it.basisNote || '', basisDoc: it.basisDoc || null, mount: it.mount, mountNote: it.mountNote || '', refUpload: it.refUpload || c.refUpload, refSeed: it.refSeed || c.refSeed});
         hist(c, `Данные исправлены по доработке (версия ${a.version + 1})`);
         const ai = a.items.find(x => x.camId === c.id);
         if (ai && ai.decision && ai.decision.outcome === 'rework') { ai.prev = ai.decision; ai.decision = null; ai.justification = it.justification; }
@@ -978,7 +989,7 @@ const API = {
     for (const it of d.items) {
       const n = S.seq.cam++;
       const c = {id: 'c' + n, num: 'NOY-' + String(n).padStart(5, '0'), org, x: it.x, y: it.y, az: it.az, fov: it.fov, range: it.range, esvType: it.esvType || 'Внешняя', cls: it.cls, ai: it.ai, purpose: it.purpose,
-        place: 'planned', esv: 'none', name: it.name, fullName: `${ORGS[org].mask} ${it.name}`, address: itemGeo(it).addr, fias: itemGeo(it).fias, priority: null, restricted: false, passport: null,
+        place: 'planned', esv: 'none', name: it.name, fullName: `${ORGS[org].mask} ${it.name}`, address: itemGeo(it).addr, fias: itemGeo(it).fias, basis: it.basis, basisNote: it.basisNote || '', basisDoc: it.basisDoc || null, mount: it.mount, mountNote: it.mountNote || '', priority: null, restricted: false, passport: null,
         needsPassport: false, esvId: null, eksId: null, agreement: null, secret: null, availability: null, retireApproved: false, history: [], apps: [id], refUpload: it.refUpload || null, refSeed: it.refSeed || null};
       c.history.push({t: S.clock, who: actor(), text: `Создана заявлением ${id}`});
       S.cameras.push(c);
@@ -1448,6 +1459,8 @@ function draftIssues(it, items) {
   if (!it.name.trim()) r.push('наименование');
   if (!it.cls || !it.purpose || !it.ai) r.push('класс, назначение и ИИ');
   if (!it.ref) r.push('эталонный кадр');
+  if (!it.basis) r.push('основание установки'); else if (it.basis === 'Иное' && !(it.basisNote || '').trim()) r.push('пояснение к основанию');
+  if (!it.mount) r.push('место установки'); else if (it.mount === 'Другое' && !(it.mountNote || '').trim()) r.push('описание места установки');
   const ov = overlapsFor(it, items);
   if (ov.length && !(it.justification || '').trim()) r.push(`обоснование перекрытия с ${ov[0].num}`);
   return r;
@@ -1553,7 +1566,7 @@ function addDraftItem(x, y) {
   const d = ensureDraft();
   if (d.appId) { toast('В повторной подаче исправляются только возвращённые позиции — новые камеры добавьте отдельным заявлением', 'bad'); return; }
   UI.wizUndo = null;
-  d.items.push({x, y, az: 180, fov: 90, range: 70, esvType: 'Внешняя', cls: 'overview', purpose: 'Благоустройство', ai: 'Без ИИ (обзорная)', name: '', ref: false, refUpload: null, justification: '', passWidth: 6});
+  d.items.push({x, y, az: 180, fov: 90, range: 70, esvType: 'Внешняя', cls: 'overview', purpose: 'Благоустройство', ai: 'Без ИИ (обзорная)', name: '', ref: false, refUpload: null, justification: '', passWidth: 6, basis: '', basisNote: '', basisDoc: null, mount: '', mountNote: ''});
   geocodeItem(d.items[d.items.length - 1]);
   UI.wizSel = d.items.length - 1; save(); render();
 }
@@ -1561,7 +1574,7 @@ function startRework(appId) {
   const a = appById(appId);
   S.draft = {appId, items: a.items.filter(i => i.decision && i.decision.outcome === 'rework').map(i => {
     const c = cam(i.camId);
-    return {camId: c.id, x: c.x, y: c.y, az: c.az, fov: c.fov, range: c.range, esvType: c.esvType || 'Внешняя', cls: c.cls, purpose: c.purpose, ai: c.ai, name: c.name, ref: true, refUpload: c.refUpload || null, refSeed: c.refSeed || null, justification: i.justification || '', passWidth: 6, returned: i.decision};
+    return {camId: c.id, x: c.x, y: c.y, az: c.az, fov: c.fov, range: c.range, esvType: c.esvType || 'Внешняя', cls: c.cls, purpose: c.purpose, ai: c.ai, name: c.name, basis: c.basis || '', basisNote: c.basisNote || '', basisDoc: c.basisDoc || null, mount: c.mount || '', mountNote: c.mountNote || '', ref: true, refUpload: c.refUpload || null, refSeed: c.refSeed || null, justification: i.justification || '', passWidth: 6, returned: i.decision};
   })};
   UI.wizSel = 0; UI.page = 'new'; VIEWS.wiz = null; delete VIEWS.wiz; save(); render();
 }
@@ -1752,7 +1765,7 @@ function pageRegistry() {
       <div class="chips">${GROUPS.filter(g => g.k !== 'id').map(g => `<button class="chip${UI.hidden.includes(g.k) ? '' : ' on'}" data-act="grp" data-v="${g.k}" title="Ведёт: ${esc(g.who)}">${g.t} <i>${g.cols.filter(x => !x.card).length}</i></button>`).join('')}</div>
       <div class="grow"></div>
       <span class="muted" style="font-size:12.5px">${rows.length} камер · ${cols.length} полей</span>
-      ${DL ? `<button class="btn" data-act="export">Выгрузить в Excel (CSV)</button>` : ''}
+      <button class="btn" data-act="export">Выгрузить в Excel (CSV)</button>
     </div>
     <section class="card reg"><div class="tbl-wrap reg-wrap"><table class="reg-table">
       <thead><tr class="gh">${groups.map(g => `<th colspan="${g.cols.filter(x => !x.card).length}" class="g-${g.k}">${g.t} <span class="gw">· ведёт ${esc(g.who)}</span></th>`).join('')}</tr>
@@ -1760,6 +1773,42 @@ function pageRegistry() {
       <tbody>${rows.map(c => `<tr class="click${c.id === sel ? ' sel' : ''}" data-act="cam" data-v="${c.id}">${cols.map(x => cell(x, c)).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="empty">Ничего не найдено</td></tr>`}</tbody>
     </table></div></section>
     <p class="demo-note">В таблице — основные поля; карточка камеры (клик по строке) показывает остальные: описание, техобслуживание, сверку ракурса. Характеристики модели (кодеки, ONVIF, климатическое исполнение) хранятся в справочнике моделей, а не в каждой карточке. Пароли в реестре не показываются и не выгружаются — только отметка, что они переданы.</p>`;
+}
+const csvq = v => { const t = String(v ?? ''); return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+function saveFile(filename, data, okMsg) {
+  if (DL) { DL.save({filename, data}).then(() => toast(okMsg)).catch(err => { if (err && err.code !== 'declined') toast('Не удалось сохранить файл: ' + (err.message || err.code), 'bad'); }); return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], {type: 'text/csv;charset=utf-8'})); a.download = filename;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); toast(okMsg);
+}
+function connPeriod() {
+  const today = dOnly(S.clock);
+  if (!UI.connFrom) UI.connFrom = today.slice(0, 8) + '01';
+  if (!UI.connTo) UI.connTo = today;
+  const list = S.cameras.filter(c => c.connectedAt && dOnly(c.connectedAt) >= UI.connFrom && dOnly(c.connectedAt) <= UI.connTo).sort((a, b) => a.connectedAt.localeCompare(b.connectedAt));
+  return list;
+}
+function connCSV(list) {
+  const head = ['Дата подключения', 'Номер', 'Наименование', 'Организация', 'Адрес установки', 'ФИАС здания', 'Основание установки', 'ID ЕСВ', 'Состояние'];
+  return '\ufeff' + [head, ...list.map(c => [fmtD(c.connectedAt), c.num, c.name, ORGS[c.org].name, c.address, c.fias || '', basisText(c), c.esvId || '', DERIVED[derived(c)][0]])].map(r => r.map(csvq).join(';')).join('\r\n');
+}
+function connReportHTML() {
+  const list = connPeriod(), today = dOnly(S.clock), y = today.slice(0, 4), m = +today.slice(5, 7);
+  const prevM = m === 1 ? `${+y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`, prevEnd = dOnly(new Date(Date.UTC(+prevM.slice(0, 4), +prevM.slice(5, 7), 0)).toISOString());
+  const presets = [['Этот месяц', today.slice(0, 8) + '01', today], ['Прошлый месяц', prevM + '-01', prevEnd], ['С начала года', y + '-01-01', today], ['Всё время', '2020-01-01', today]];
+  return `<section class="card"><div class="card-h"><h3>Подключены к ЕСВ за период</h3><span class="muted">${list.length} кам.</span></div>
+    <div class="card-b" style="display:grid;gap:12px">
+      <div class="row" style="gap:10px;align-items:end">
+        <label class="fld"><span>С</span><input type="date" id="f-cfrom" value="${UI.connFrom}"></label>
+        <label class="fld"><span>По</span><input type="date" id="f-cto" value="${UI.connTo}"></label>
+        <div class="chips">${presets.map(([t, f, to]) => `<button class="chip${UI.connFrom === f && UI.connTo === to ? ' on' : ''}" data-act="connp" data-f="${f}" data-t="${to}">${t}</button>`).join('')}</div>
+        <div class="grow"></div>
+        <button class="btn" data-act="connexp"${list.length ? '' : ' disabled'}>Выгрузить в Excel (CSV)</button>
+      </div>
+      <div class="tbl-wrap"><table><thead><tr><th>Подключена</th><th>Номер</th><th>Наименование</th><th>Организация</th><th>Адрес</th><th>Основание</th><th>ID ЕСВ</th></tr></thead><tbody>
+        ${list.map(c => `<tr class="click" data-act="cam" data-v="${c.id}"><td>${fmtD(c.connectedAt)}</td><td class="num">${c.num}</td><td>${esc(c.name)}</td><td>${esc(ORGS[c.org].short)}</td><td>${esc(c.address.replace(/^г\. Ноябрьск, /, ''))}</td><td>${esc(basisText(c))}</td><td class="num">${esc(c.esvId || '—')}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">За период подключений нет</td></tr>'}
+      </tbody></table></div>
+      <div class="faint" style="font-size:12px">Дата подключения ставится автоматически, когда «Ресурсы Ямала» добавляют камеру в ЕСВ через платформу, — отдельное уведомление от владельца (п. 2.3 проекта регламента) не нужно.</div>
+    </div></section>`;
 }
 function exportCSV() {
   const {list} = regList();
@@ -1927,7 +1976,7 @@ function pageNew() {
     <section class="card">
       <div class="card-h"><h3>${d.appId ? 'Возвращённые позиции' : 'Позиции заявления'}</h3><span class="muted">${items.length} / 50</span></div>
       <div class="card-b" style="display:grid;gap:14px">
-        <div class="callout info" style="font-size:12.5px"><b>Этап 1 — заявление.</b> Сейчас нужен только минимум: наименование, точка на карте, направление обзора, назначение и эталонный кадр. Модель, IP-адрес, RTSP и учётные данные вносятся после одобрения — перед подключением к ЕСВ.</div>
+        <div class="callout info" style="font-size:12.5px"><b>Этап 1 — заявление.</b> Сейчас нужен только минимум: точка на карте, направление обзора, наименование, основание и место установки, назначение и эталонный кадр. Модель, IP-адрес, RTSP и учётные данные вносятся после одобрения — перед подключением к ЕСВ.</div>
         ${UI.wizUndo ? `<div class="callout info row" style="padding:6px 8px 6px 12px"><span class="grow">${esc(UI.wizUndo.text)}</span><button class="btn sm" data-act="wizundo">Вернуть</button></div>` : ''}
         ${items.length ? (() => { const iss = items.map(x => draftIssues(x, items)), ready = iss.filter(x => !x.length).length, empty = items.filter(draftEmpty).length;
           return `<div class="row" style="gap:8px"><span class="muted grow" style="font-size:12.5px">Готово к подаче: <b>${ready}</b> из ${items.length}${ready < items.length ? ' · <i class="dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--warn)"></i> — не хватает данных' : ''}</span>${!d.appId && empty ? `<button class="btn sm" data-act="wizdelempty" title="Позиции без наименования и эталонного кадра — обычно это случайные клики по карте">Удалить пустые (${empty})</button>` : ''}</div>
@@ -1940,6 +1989,13 @@ function pageNew() {
           <div class="muted" style="font-size:12.5px"><b style="color:var(--ink)">${esc(itemGeo(it).addr)}</b> · ${esc(geoNote(itemGeo(it)))}<br>${toLatLon(it.x, it.y).map(v => v.toFixed(5)).join(', ')} · точку можно перетащить — адрес обновится</div>
           <label class="fld"><span>Тип камеры (классификатор ЕСВ)</span><select id="w-etype" data-wiz="esvType">${ESV_TYPES.map(t => `<option${(it.esvType || 'Внешняя') === t ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
           ${['Подъездная камера', 'Домофон'].includes(it.esvType) ? `<div class="callout info" style="font-size:12.5px">Рекомендации АТК для подъездов: снаружи — обзор пространства перед входной дверью, лицо входящего не менее 25 % кадра, высота установки около 175 см; внутри — лифтовый холл или лестничный марш.</div>` : it.esvType === 'Внутриобъектовая' ? `<div class="callout info" style="font-size:12.5px">Для внутриобъектовой камеры точка на карте — место объекта; адрес и описание помещения укажите в наименовании.</div>` : ''}
+          <div class="grid2">
+            <label class="fld"><span>Основание установки</span><select id="w-basis" data-wiz="basis"><option value="">— выберите —</option>${BASES.map(b => `<option${it.basis === b ? ' selected' : ''}>${b}</option>`).join('')}</select></label>
+            <label class="fld"><span>Место установки</span><select id="w-mount" data-wiz="mount"><option value="">— выберите —</option>${MOUNTS.map(b => `<option${it.mount === b ? ' selected' : ''}>${b}</option>`).join('')}</select></label>
+          </div>
+          ${it.basis === 'Иное' ? `<label class="fld"><span>Поясните основание</span><input type="text" id="w-bnote" data-wiz="basisNote" value="${esc(it.basisNote || '')}" placeholder="Почему здесь нужна камера"></label>` : ''}
+          ${it.mount === 'Другое' ? `<label class="fld"><span>Где будет установлена камера</span><input type="text" id="w-mnote" data-wiz="mountNote" value="${esc(it.mountNote || '')}" placeholder="Например: мачта на парковке, козырёк входа"></label>` : ''}
+          <div class="fld"><span>Подтверждающий документ — при наличии (ходатайство, акт обследования, письмо)</span><div class="row"><label class="btn sm" style="cursor:pointer">${it.basisDoc ? 'Заменить' : 'Приложить файл'}<input type="file" id="w-bdoc" hidden></label>${it.basisDoc ? `<span class="muted" style="font-size:12.5px">${esc(it.basisDoc)}</span><button class="btn sm" data-act="wizbdocdel">Убрать</button>` : '<span class="faint" style="font-size:12px">не приложен</span>'}</div></div>
           <div class="grid3">
             <label class="fld"><span>Класс</span><select id="w-cls" data-wiz="cls">${Object.entries(CLS).map(([k, v]) => `<option value="${k}"${it.cls === k ? ' selected' : ''}>${v}</option>`).join('')}</select></label>
             <label class="fld"><span>Назначение</span><select id="w-purpose" data-wiz="purpose">${PURPOSES.map(p => `<option${it.purpose === p ? ' selected' : ''}>${p}</option>`).join('')}</select></label>
@@ -2014,6 +2070,7 @@ function pageApp() {
       <div class="pos-h"><span class="posn">${idx + 1}</span><span class="num">${c.num}</span><b>${esc(c.name)}</b><span class="grow"></span>${dec ? pill(...{approve: ['Одобрено','ok'], rework: ['На доработку','warn'], refuse: ['Отказано','bad'], withdrawn: ['Отозвана заявителем','mute']}[dec.outcome]) : pill('Ожидает решения','info')}<button class="btn sm" data-act="focusitem" data-v="${idx}">На карте</button></div>
       <div class="pos-b"><img alt="Эталонный кадр ${c.num}" src="${frameOf(c)}">
         <div><div class="muted" style="font-size:13px">${esc(c.address)} · ${CLS[c.cls]} · ${esc(c.purpose)} · азимут ${c.az}°, угол ${c.fov}°</div>
+          ${a.kind === 'place' ? `<div class="muted" style="font-size:13px;margin-top:4px">Основание: <b style="color:var(--ink)">${esc(basisText(c))}</b>${c.basisDoc ? ` · документ: ${esc(c.basisDoc)}` : ' · документ не приложен'}<br>Место установки: <b style="color:var(--ink)">${esc(mountText(c))}</b></div>` : ''}
           ${it.change ? `<div class="callout ${dec && dec.outcome === 'approve' ? 'ok' : 'info'}" style="margin-top:8px;font-size:12.5px"><b>${dec && dec.outcome === 'approve' ? 'Изменено' : 'Просят изменить'}:</b> ${esc(changeText(it.change))}${c.esvId && !dec ? '<br>После одобрения платформа сама обновит запись в ЕСВ.' : ''}${a.reason ? '<br>Причина: ' + esc(a.reason) : ''}</div>` : ''}
           <div class="checks" style="margin-top:6px">
             <div class="chk ok"><span class="ic">✓</span><span>Эталонный кадр, координаты и азимут приложены</span></div>
@@ -2062,7 +2119,7 @@ function pageHelp() {
       <li><b>Лишнюю точку</b> удалите крестиком на вкладке позиции. «Удалить пустые» уберёт все случайные клики сразу: позиции без названия и кадра. Удаление можно отменить кнопкой «Вернуть».</li>
       <li><b>Адрес</b> подставляется сам по адресному плану ЕКС: адрес здания, в контуре которого стоит точка, или ближайшего здания в пределах 150 м, с кодом ФИАС. Если рядом нет зданий, указывается ориентир.</li>
       <li><b>Неточную точку</b> перетащите мышью. Направление и ширину обзора задайте ползунками — сектор сразу виден на карте рядом с чужими камерами.</li>
-      <li>Заполните минимум: наименование, тип по классификатору ЕСВ, класс, назначение, целевой ИИ, эталонный кадр (фото того, что должна видеть камера).</li>
+      <li>Заполните минимум: наименование, тип по классификатору ЕСВ, <b>основание установки</b> (почему здесь нужна камера; ходатайство или другой документ — при наличии), <b>место установки</b> (опора, стена, крыша, внутри помещения), класс, назначение, целевой ИИ, эталонный кадр.</li>
       <li>Если сектор перекрывает существующую камеру, напишите обоснование. <span class="why">Так в реестр не попадают дубли.</span></li>
       <li>Оранжевая точка на вкладке — позиции чего-то не хватает. Когда все зелёные, нажмите «Подать заявление». Черновик сохраняется сам.</li>
     </ol>
@@ -2093,7 +2150,7 @@ function pageHelp() {
       <li>Заявления на изменение одобряются или отклоняются. Заявления на вывод одобряются или получают «Не удалять» с комментарием.</li>
       <li><b>Контроль прохождения</b> — где застряла каждая камера после одобрения и кто за это отвечает (владелец или РЯ).</li>
       <li><b>Сверка ракурса</b> — фактический кадр не совпал с эталоном: решите, приемлемо ли это. Подключение это не блокирует.</li>
-      <li><b>Отчёты</b> — решения, причины отказов, камеры по организациям.</li>
+      <li><b>Отчёты</b> — решения, причины отказов, камеры по организациям и «Подключены к ЕСВ за период» с выгрузкой в Excel.</li>
     </ol>`)}
 
   ${box('rya', '«Ресурсы Ямала» — оператор ЕСВ', `
@@ -2172,7 +2229,8 @@ function pageReports() {
         ${orgRows.map(([t, n, tot]) => `<div><div class="row" style="justify-content:space-between;font-size:13px"><span>${esc(t)}</span><span class="num">${tot}</span></div><div class="stack" title="${Object.keys(DERIVED).map(k => DERIVED[k][0] + ': ' + n[k]).join(', ')}">${Object.keys(DERIVED).map(k => n[k] ? `<i style="width:${n[k] / tot * 100}%;background:${colors[k]}"></i>` : '').join('')}</div></div>`).join('')}
         <div class="row" style="font-size:12px;color:var(--soft);gap:14px">${Object.keys(DERIVED).map(k => `<span style="display:inline-flex;gap:5px;align-items:center"><i style="width:10px;height:10px;border-radius:3px;background:${colors[k]}"></i>${DERIVED[k][0]}</span>`).join('')}</div>
       </div></section>
-    </div>`;
+    </div>
+    ${connReportHTML()}`;
 }
 
 /* ----- РЯ ----- */
@@ -2525,11 +2583,12 @@ document.addEventListener('click', e => {
     case 'regview': UI.regView = v; render(); break;
     case 'sort': UI.sort = UI.sort.k === v ? {k: v, dir: -UI.sort.dir} : {k: v, dir: 1}; render(); break;
     case 'grp': UI.hidden = UI.hidden.includes(v) ? UI.hidden.filter(x => x !== v) : [...UI.hidden, v]; render(); break;
+    case 'connp': UI.connFrom = el.dataset.f; UI.connTo = el.dataset.t; render(); break;
+    case 'connexp': { const list = connPeriod(); call('POST', '/api/v1/reports/esv-connected:export', () => { audit(`Выгрузка «Подключены к ЕСВ» за ${fmtD(UI.connFrom)}–${fmtD(UI.connTo)} (${list.length} кам.)`, 'отчёты'); }); saveFile(`podklyucheny-k-esv_${UI.connFrom}_${UI.connTo}.csv`, connCSV(list), 'Отчёт сохранён'); break; }
     case 'export': {
-      if (!DL) break;
       const data = exportCSV();
       call('POST', '/api/v1/cameras:export', () => { audit(`Выгрузка реестра в CSV (${regList().list.length} камер)`, 'реестр'); });
-      DL.save({filename: `reestr-kamer-${dOnly(S.clock)}.csv`, data}).then(() => toast('Файл реестра сохранён')).catch(err => { if (err && err.code !== 'declined') toast('Не удалось сохранить файл: ' + (err.message || err.code), 'bad'); });
+      saveFile(`reestr-kamer-${dOnly(S.clock)}.csv`, data, 'Файл реестра сохранён');
       break; }
     case 'jtab': UI.journalTab = v; render(); break;
     case 'rework': closeCam(); startRework(v); break;
@@ -2564,6 +2623,7 @@ document.addEventListener('click', e => {
     case 'wizundo': if (UI.wizUndo) { S.draft = S.draft || {appId: null, items: []}; S.draft.items = UI.wizUndo.items; UI.wizSel = UI.wizUndo.sel; UI.wizUndo = null; save(); render(); } break;
     case 'wizcancel': S.draft = null; UI.page = 'apps'; save(); render(); break;
     case 'wizgen': { const it = S.draft.items[UI.wizSel]; it.ref = true; it.refUpload = null; it.refSeed = 'Кадр ' + Math.random().toString(36).slice(2, 6).toUpperCase(); save(); render(); break; }
+    case 'wizbdocdel': { const it = S.draft.items[UI.wizSel]; it.basisDoc = null; save(); render(); break; }
     case 'wizclearref': { const it = S.draft.items[UI.wizSel]; it.ref = false; it.refUpload = null; save(); render(); break; }
     case 'wizsubmit': { UI.wizUndo = null; const re = !!S.draft.appId; const a = call('POST', re ? `/api/v1/applications/${S.draft.appId}/resubmit` : '/api/v1/applications', () => API.submitDraft()); if (a) { toast(re ? `Заявление ${a.id} подано повторно` : `Заявление ${a.id} подано: ${a.items.length} кам.`); UI.appId = a.id; UI.page = 'app'; delete VIEWS.wiz; render(); } break; }
     case 'mclose': closeModal(); window._factFrame = null; break;
@@ -2624,6 +2684,7 @@ document.addEventListener('change', e => {
   if (t.id === 'f-recok') { UI.recOk = UI.recOk || {}; UI.recOk[t.dataset.v] = t.checked; reopenEsv(t.dataset.v); return; }
   if (t.id === 'f-lmode') { const b = $('#lopbox'); if (b) b.hidden = t.value !== 'vpn'; return; }
   if (t.id === 'f-ownerorg') { S.ownerOrg = t.value; setOwnerOrg(t.value); UI.page = 'home'; UI.camId = null; $('#layer').innerHTML = ''; for (const k in VIEWS) delete VIEWS[k]; save(); render(); return; }
+  if (t.id === 'f-cfrom' || t.id === 'f-cto') { if (t.value) { if (t.id === 'f-cfrom') UI.connFrom = t.value; else UI.connTo = t.value; render(); } return; }
   if (t.id === 'f-support') { const b = $('#newsup'); if (b) b.hidden = t.value !== '__new'; return; }
   if (t.id === 'f-ag') { const b = $('#newag'); if (b) b.hidden = t.value !== '__new'; return; }
   if (t.id === 'f-fact' && t.files && t.files[0]) {
@@ -2638,7 +2699,8 @@ document.addEventListener('change', e => {
     const pp = $('#ptzpass'); if (pp) pp.hidden = !ptz;
     return;
   }
-  if (t.dataset.wiz && S.draft && ['cls', 'purpose', 'ai', 'passWidth', 'esvType'].includes(t.dataset.wiz)) { const it = S.draft.items[UI.wizSel]; if (it) it[t.dataset.wiz] = t.value; save(); render(); return; }
+  if (t.dataset.wiz && S.draft && ['cls', 'purpose', 'ai', 'passWidth', 'esvType', 'basis', 'mount'].includes(t.dataset.wiz)) { const it = S.draft.items[UI.wizSel]; if (it) it[t.dataset.wiz] = t.value; save(); render(); return; }
+  if (t.id === 'w-bdoc' && t.files && t.files[0] && S.draft) { const it = S.draft.items[UI.wizSel]; if (it) { it.basisDoc = t.files[0].name; save(); render(); } return; }
   if (t.id === 'w-file' && t.files && t.files[0] && S.draft) {
     const f = t.files[0], rd = new FileReader();
     rd.onload = () => {
