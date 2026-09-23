@@ -252,7 +252,23 @@ figure{margin:0}
 /* wizard */
 .wiz{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;align-items:start}
 .items{display:flex;gap:6px;flex-wrap:wrap}
-.item-tab{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:6px 10px;font-size:12.5px;display:inline-flex;gap:6px;align-items:center}
+.item-tab{border:1px solid var(--line);background:var(--surface);border-radius:9px;font-size:12.5px;display:inline-flex;align-items:center}
+.item-tab>button{border:0;background:none;font:inherit;color:inherit;cursor:pointer;display:inline-flex;gap:6px;align-items:center;padding:6px 4px 6px 10px}
+.item-tab>.x{padding:4px 8px 4px 4px;color:var(--faint);font-size:16px;line-height:1}
+.item-tab>.x:hover{color:var(--bad)}
+.item-tab .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+.item-tab.todo .dot{background:var(--warn)}
+.item-tab .tl.noname{font-style:italic;color:var(--soft)}
+.help{display:grid;gap:18px;max-width:980px}
+.help h2{font-size:17px;margin:0 0 8px}
+.help h4{font-size:14px;margin:14px 0 6px}
+.help p,.help li{font-size:13.5px;line-height:1.55}
+.help ol,.help ul{margin:0;padding-left:20px;display:grid;gap:5px}
+.help table{width:100%;border-collapse:collapse;font-size:13px}
+.help td,.help th{border-bottom:1px solid var(--line);padding:8px 10px 8px 0;text-align:left;vertical-align:top}
+.help th{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);font-weight:600}
+.help .mine{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.help .why{color:var(--soft)}
 .item-tab.on{border-color:var(--warn);background:var(--warn-soft);font-weight:600}
 .slider{display:grid;grid-template-columns:120px 1fr 64px;gap:10px;align-items:center;font-size:13px}
 .slider input[type=range]{width:100%;accent-color:var(--accent)}
@@ -431,7 +447,7 @@ const REGION_VIEW = (() => { const [x1, y1] = worldOf(73.4, 60.2), [x2, y2] = wo
    Если map.yanao.ru недоступен (зарубежный IP, ограничения страницы) — встроенная копия TILES. */
 const EKC_TILE = 'https://map.yanao.ru/elitegis/rest/services/common/basemap/MapServer/tile/';
 const TILE_SRC = {live: null};
-const tileSrc = key => { if (!TILE_SRC.live) return TILES[key]; const [z, x, y] = key.split('/'); return EKC_TILE + z + '/' + y + '/' + x; };
+const tileSrc = key => { if (!TILE_SRC.live || (+key.split('/')[0] <= 8 && TILES[key])) return TILES[key]; const [z, x, y] = key.split('/'); return EKC_TILE + z + '/' + y + '/' + x; };
 (() => {
   const probe = new Image(), key = Object.keys(TILES).find(k => k.startsWith('8/'));
   const done = ok => {
@@ -594,11 +610,14 @@ let S = null;
 const UI = {page: 'home', appId: null, camId: null, regFilter: 'all', regSearch: '', regView: 'table', ctlResp: 'all', ctlOver: false, appsFilter: 'all', queueFilter: 'all', sort: {k: 'num', dir: 1}, hidden: [], onlyMine: false, wizSel: 0, journalTab: 'audit', bell: false, focusItem: 0};
 const VIEWS = {};
 
-const PLACE = {planned: ['Планируется','info'], permitted: ['Одобрена','accent'], installed: ['Смонтирована','ok'], retired: ['Выведена','mute'], rejected: ['Отказано','bad']};
+const PLACE = {planned: ['Планируется','info'], permitted: ['Одобрена','accent'], installed: ['Смонтирована','ok'], retired: ['Выведена','mute'], rejected: ['Отказано','bad'], withdrawn: ['Отозвана','mute']};
+const placeKey = c => c.withdrawn && c.place === 'rejected' ? 'withdrawn' : c.place;
 const ESV = {none: ['Не подключена','mute'], agreement: ['Соглашение','accent'], connected: ['Подключена','ok'], suspended: ['Временно отключена','bad'], disconnected: ['Отключена','mute']};
 const DERIVED = {cand: ['Кандидат','info'], work: ['Рабочая','ok'], fault: ['Неисправна','bad'], arch: ['Архив','mute']};
 const APP_ST = {draft: ['Черновик','mute'], submitted: ['Подано','info'], security: ['Силовой блок','warn'], review: ['На рассмотрении','accent'], rework: ['На доработке','warn'], done: ['Рассмотрено','ok'], withdrawn: ['Отозвано','mute']};
 const KIND = {place: 'Размещение', change: 'Изменение', retire: 'Вывод'};
+const CHANGE_F = {name: ['Наименование', v => v], az: ['Азимут', v => v + '°'], fov: ['Угол обзора', v => v + '°'], cls: ['Класс', v => CLS[v] || v], purpose: ['Назначение', v => v], ai: ['Целевой ИИ', v => v]};
+const changeText = d => Object.entries(d).map(([k, [o, n]]) => `${CHANGE_F[k][0].toLowerCase()}: ${CHANGE_F[k][1](o)} → ${CHANGE_F[k][1](n)}`).join('; ');
 const derived = c => (c.place === 'retired' || c.place === 'rejected') ? 'arch' : (c.place === 'installed' && c.esv === 'connected') ? 'work' : (c.place === 'installed' && c.esv === 'suspended') ? 'fault' : 'cand';
 const pill = (t, k) => `<span class="pill ${k}">${esc(t)}</span>`;
 const dpill = c => pill(...DERIVED[derived(c)]);
@@ -646,7 +665,7 @@ const GROUPS = [
     col('num', 'Номер', c => c.num, {mono: 1}), col('esvId', 'ID ЕСВ', c => c.esvId || '—', {mono: 1}), col('name', 'Краткое наименование', c => c.name),
     col('fullName', 'Наименование по маске', c => c.fullName)]},
   {k: 'state', t: 'Состояние', who: 'система', cols: [
-    col('derived', 'Состояние', c => DERIVED[derived(c)][0]), col('place', 'Размещение', c => PLACE[c.place][0]), col('esv', 'Подключение к ЕСВ', c => ESV[c.esv][0])]},
+    col('derived', 'Состояние', c => DERIVED[derived(c)][0]), col('place', 'Размещение', c => PLACE[placeKey(c)][0]), col('esv', 'Подключение к ЕСВ', c => ESV[c.esv][0])]},
   {k: 'purpose', t: 'Назначение', who: 'владелец, уточняет ДРБ', cols: [
     col('cls', 'Класс', c => CLS[c.cls]), col('ai', 'Целевой ИИ', c => c.ai), col('purpose', 'Назначение', c => c.purpose),
     col('priority', 'Приоритет', c => c.priority || (c.purpose === 'Общественная безопасность' ? 'Высокий' : 'Обычный')),
@@ -852,14 +871,8 @@ const API = {
     const d = S.draft;
     if (!d || !d.items.length) bad('EMPTY', 'Добавьте хотя бы одну камеру: кликните по карте');
     if (d.items.length > 50) bad('TOO_MANY', 'В одном заявлении не более 50 камер');
-    d.items.forEach((it, i) => {
-      const p = `Позиция ${i + 1}: `;
-      if (!it.name.trim()) bad('VALIDATION', p + 'укажите наименование');
-      if (!it.cls || !it.purpose || !it.ai) bad('VALIDATION', p + 'укажите класс, назначение и целевой ИИ');
-      if (!it.ref) bad('NO_REFERENCE_FRAME', p + 'без эталонного кадра заявку подать нельзя');
-      const ov = overlapsFor(it, d.items);
-      if (ov.length && !it.justification.trim()) bad('OVERLAP_NEEDS_JUSTIFICATION', `${p}сектор перекрывается с ${ov[0].num} на ${Math.round(ov[0].frac * 100)} % — нужно обоснование`);
-    });
+    const errs = d.items.map((it, i) => [i, draftIssues(it, d.items)]).filter(x => x[1].length);
+    if (errs.length) bad('VALIDATION', `Не заполнено в ${errs.length} из ${d.items.length} позиций — ` + errs.slice(0, 3).map(([i, r]) => `№ ${i + 1}: ${r.join(', ')}`).join('; ') + (errs.length > 3 ? ` и ещё в ${errs.length - 3}` : '') + '. Позиции с замечаниями отмечены оранжевой точкой.');
     const org = ROLES.owner.org;
     if (d.appId) {
       const a = appById(d.appId);
@@ -916,8 +929,10 @@ const API = {
     if (it.decision) conflict('ALREADY_DECIDED', 'По позиции уже принято решение');
     if (a.kind === 'place' && outcome !== 'approve' && !reasons.length) bad('REASON_REQUIRED', 'Для доработки и отказа выберите причину из справочника');
     if (a.kind === 'retire' && outcome === 'refuse' && !comment.trim()) bad('COMMENT_REQUIRED', 'Укажите, почему камеру нельзя выводить');
+    if (a.kind === 'change' && outcome === 'refuse' && !comment.trim()) bad('COMMENT_REQUIRED', 'Укажите, почему изменение не согласовано');
+    if (a.kind === 'change' && outcome === 'rework') bad('VALIDATION', 'Заявление на изменение одобряется или отклоняется');
     if (reasons.includes('R99') && !comment.trim()) bad('COMMENT_REQUIRED', 'Для причины «Иное» нужен комментарий');
-    if (outcome === 'approve' && a.kind === 'place') {
+    if (outcome === 'approve' && a.kind !== 'retire') {
       if (needsSec(it) && !secDone(it)) conflict('SECURITY_PENDING', 'Нельзя одобрить: не получены ответы всех ведомств силового блока');
       if (needsSec(it) && Object.values(it.security).some(s => s.result === 'neg')) conflict('SECURITY_NEGATIVE', 'Нельзя одобрить: есть отрицательное заключение ведомства');
     }
@@ -927,6 +942,19 @@ const API = {
       if (outcome === 'approve') { c.place = 'permitted'; const pu = new Date(S.clock); pu.setMonth(pu.getMonth() + PERMIT_MONTHS); c.permitUntil = pu.toISOString().slice(0, 10); hist(c, `ДРБ: одобрено (${a.id}) → «Одобрена», согласование действует до ${fmtD(c.permitUntil)}`); }
       if (outcome === 'refuse') { c.place = 'rejected'; hist(c, `ДРБ: отказ (${reasons.join(', ')}) → архив`); }
       if (outcome === 'rework') hist(c, `ДРБ: на доработку (${reasons.join(', ')})`);
+    } else if (a.kind === 'change') {
+      if (outcome === 'approve') {
+        for (const [k, [, nv]] of Object.entries(it.change)) c[k] = nv;
+        if (it.change.name) c.fullName = `${ORGS[c.org].mask} ${c.name}`;
+        if (it.change.az || it.change.fov) { c.factAz = c.az; c.factFov = c.fov; }
+        hist(c, `ДРБ: изменение одобрено (${a.id}) — ${changeText(it.change)}`);
+        if (c.esvId && ['connected', 'suspended'].includes(c.esv)) {
+          S.api.unshift({t: S.clock, who: 'Платформа → ЕСВ', method: 'PATCH', path: `ЕСВ (NETRIS) /api/v1/cameras/${c.esvId}`, status: 200});
+          hist(c, 'Запись в ЕСВ обновлена через API');
+          notify('rya', `${c.num}: одобрено изменение (${changeText(it.change)}), запись в ЕСВ обновлена автоматически.`, {cam: c.id});
+        }
+        if (it.change.az || it.change.fov) S.viewChecks.unshift({id: 'v' + Date.now(), camId: c.id, at: S.clock, similarity: 90, status: 'ok'});
+      } else hist(c, `ДРБ: изменение не согласовано — ${comment.trim()}`);
     } else if (a.kind === 'retire') {
       if (outcome === 'approve') { c.retireApproved = true; hist(c, 'ДРБ: вывод одобрен — ожидает отключения РЯ'); notify('rya', `Одобрен вывод ${c.num} — отключите камеру от ЕСВ.`, {page: 'connect'}); }
       else hist(c, 'ДРБ: вывод отклонён («не удалять»)');
@@ -1175,6 +1203,50 @@ const API = {
     notify('rya', `Подписка: подано заявление на вывод ${c.num}.`, {cam: c.id});
     return a;
   },
+  withdraw(appId, idx) {
+    const a = appById(appId);
+    if (S.role !== 'owner' || !a || a.org !== ROLES.owner.org) deny('Отозвать заявление может только заявитель');
+    if (![...ACTIVE, 'rework'].includes(a.status)) conflict('BAD_STATE', 'Заявление уже рассмотрено — отозвать нельзя. Для смонтированной камеры подайте заявление на вывод');
+    const can = i => !i.decision || i.decision.outcome === 'rework';
+    const items = idx == null ? a.items.filter(can) : [a.items[idx]];
+    if (!items.length || items.some(i => !i || !can(i))) conflict('ALREADY_DECIDED', 'По позиции уже принято решение — отозвать нельзя');
+    for (const it of items) {
+      const c = cam(it.camId);
+      it.decision = {outcome: 'withdrawn', reasons: [], comment: '', by: actor(), at: S.clock};
+      if (a.kind === 'place') { c.place = 'rejected'; c.withdrawn = true; hist(c, `Отозвана заявителем из ${a.id} → архив`); }
+      else hist(c, `Заявление ${a.id} (${KIND[a.kind].toLowerCase()}) отозвано заявителем`);
+    }
+    if (a.items.every(i => i.decision && i.decision.outcome === 'withdrawn')) a.status = 'withdrawn';
+    else if (a.items.every(i => i.decision)) a.status = a.items.some(i => i.decision.outcome === 'rework') ? 'rework' : 'done';
+    else if (a.status === 'security' && !a.items.some(i => needsSec(i) && !secDone(i) && !i.decision)) a.status = 'review';
+    if (S.draft && S.draft.appId === a.id) { S.draft.items = S.draft.items.filter(x => !items.some(i => i.camId === x.camId)); if (a.status !== 'rework' || !S.draft.items.length) S.draft = null; }
+    const what = idx == null ? `Заявление ${a.id} отозвано` : `Из заявления ${a.id} отозвана позиция ${cam(items[0].camId).num}`;
+    audit(idx == null ? 'Заявление отозвано заявителем' : 'Позиция отозвана заявителем', idx == null ? a.id : `${a.id} / ${cam(items[0].camId).num}`);
+    notify('drb', `${what} заявителем (${ORGS[a.org].short}).`, {page: 'app', id: a.id});
+    return a;
+  },
+  change(camId, ch, reason) {
+    const c = cam(camId);
+    if (S.role !== 'owner' || c.org !== ROLES.owner.org) deny('Заявление на изменение подаёт владелец камеры');
+    if (c.place !== 'installed' || c.retireApproved) conflict('BAD_STATE', 'Изменение подаётся для смонтированной камеры. До монтажа поправить камеру можно только через доработку заявления на размещение');
+    if (S.apps.some(a => a.kind !== 'place' && [...ACTIVE, 'rework'].includes(a.status) && a.items.some(i => i.camId === c.id && !i.decision))) conflict('DUPLICATE', 'По камере уже есть заявление на рассмотрении ДРБ');
+    const diff = {};
+    for (const k of Object.keys(CHANGE_F)) if (ch[k] !== undefined && ch[k] !== '' && String(ch[k]) !== String(c[k])) diff[k] = [c[k], ch[k]];
+    if (!Object.keys(diff).length) bad('NO_CHANGES', 'Ничего не изменено — поменяйте хотя бы одно поле');
+    if (diff.name && !String(ch.name).trim()) bad('VALIDATION', 'Наименование не может быть пустым');
+    if (diff.az && !(ch.az >= 0 && ch.az <= 359)) bad('VALIDATION', 'Азимут — от 0 до 359°');
+    if (diff.fov && !(ch.fov >= 10 && ch.fov <= 360)) bad('VALIDATION', 'Угол обзора — от 10 до 360°');
+    if (!reason.trim()) bad('VALIDATION', 'Укажите причину изменения — её увидит ДРБ');
+    const id = `NOY-2026-${String(S.seq.app++).padStart(4, '0')}`;
+    const sec = diff.purpose && ch.purpose === 'Общественная безопасность' ? {} : null;
+    const a = {id, kind: 'change', org: c.org, status: 'submitted', created: S.clock, submittedAt: S.clock, deadline: addWD(dOnly(S.clock), 10), version: 1, reason,
+      items: [{camId: c.id, decision: null, security: sec, checks: [], justification: reason, change: diff}]};
+    S.apps.push(a); c.apps.push(id);
+    hist(c, `Подано заявление на изменение ${id}: ${changeText(diff)}`);
+    audit('Подано заявление на изменение', `${id} / ${c.num}`);
+    notify('drb', `Заявление на изменение ${c.num} (${id}): ${changeText(diff)}.`, {page: 'app', id});
+    return a;
+  },
   disconnect(camId) {
     if (S.role !== 'rya') deny();
     const c = cam(camId);
@@ -1270,6 +1342,17 @@ function overlapsFor(it, draftItems) {
 }
 
 /* ---------- уведомления, тосты ---------- */
+function draftIssues(it, items) {
+  const r = [];
+  if (!it.name.trim()) r.push('наименование');
+  if (!it.cls || !it.purpose || !it.ai) r.push('класс, назначение и ИИ');
+  if (!it.ref) r.push('эталонный кадр');
+  const ov = overlapsFor(it, items);
+  if (ov.length && !(it.justification || '').trim()) r.push(`обоснование перекрытия с ${ov[0].num}`);
+  return r;
+}
+const draftEmpty = it => !it.name.trim() && !it.ref;
+const tabLabel = (x, i) => `${i + 1}. ${x.name.trim() || addressAt(x.x, x.y).replace(/^г\. Ноябрьск, /, '')}`;
 function toast(msg, kind = 'ok', code = '') {
   const el = document.createElement('div'); el.className = 'toast ' + kind;
   el.innerHTML = (code ? `<code>${esc(code)}</code>` : '') + esc(msg);
@@ -1298,9 +1381,9 @@ function mapHTML(key, {cams, selId = null, drafts = [], draftSel = -1, focus = n
     pts += `<circle class="pt ${k}" data-r="${c.id === selId ? 7 : 6}" cx="${c.x}" cy="${c.y}" r="${c.id === selId ? 7 : 6}"/><circle class="hit" data-r="13" data-cam="${c.id}" cx="${c.x}" cy="${c.y}" r="13"><title>${esc(c.num)} · ${esc(c.name)} · ${DERIVED[derived(c)][0]}</title></circle>`;
   }
   drafts.forEach((d, i) => {
-    sec += `<path class="sec c-draft" style="fill-opacity:${i === draftSel ? .3 : .18}" d="${sectorPath(d.x, d.y, d.az, d.fov, d.range)}"/>`;
-    if (i === draftSel) pts += `<circle class="selring" style="stroke:var(--warn)" cx="${d.x}" cy="${d.y}" r="12"/>`;
-    pts += `<circle class="pt c-draft" cx="${d.x}" cy="${d.y}" r="7"/><text x="${d.x}" y="${d.y + 3.5}" text-anchor="middle" font-size="9" font-weight="700" fill="#fff" font-family="var(--f-mono)" pointer-events="none">${i + 1}</text><circle class="hit" data-draft="${i}" cx="${d.x}" cy="${d.y}" r="13"/>`;
+    sec += `<path data-dg="${i}" class="sec c-draft" style="fill-opacity:${i === draftSel ? .3 : .18}" d="${sectorPath(d.x, d.y, d.az, d.fov, d.range)}"/>`;
+    if (i === draftSel) pts += `<circle data-dg="${i}" class="selring" style="stroke:var(--warn)" cx="${d.x}" cy="${d.y}" r="12"/>`;
+    pts += `<g data-dg="${i}"><circle class="pt c-draft" cx="${d.x}" cy="${d.y}" r="7"/><text x="${d.x}" y="${d.y + 3.5}" text-anchor="middle" font-size="9" font-weight="700" fill="#fff" font-family="var(--f-mono)" pointer-events="none">${i + 1}</text><circle class="hit" data-draft="${i}" cx="${d.x}" cy="${d.y}" r="13" style="cursor:grab"><title>Позиция ${i + 1} — перетащите, чтобы сдвинуть</title></circle></g>`;
   });
   const legend = S.role === 'owner'
     ? `<span><i style="background:var(--ok)"></i>рабочие</span><span><i style="background:var(--info)"></i>кандидаты</span><span><i style="background:var(--bad)"></i>неисправны</span><span><i style="border:2px solid var(--mute);background:var(--surface)"></i>чужие (без техданных)</span>${drafts.length ? '<span><i style="background:var(--warn)"></i>новые</span>' : ''}`
@@ -1331,17 +1414,23 @@ function attachMaps() {
       if (b.dataset.zoom === 'reset') { VIEWS[key] = {...CITY_VIEW}; setVB(); } else if (b.dataset.zoom === 'region') { VIEWS[key] = {...REGION_VIEW}; setVB(); } else zoom(b.dataset.zoom === 'in' ? 1 / 1.3 : 1.3);
     }));
     let drag = null;
-    svg.addEventListener('pointerdown', e => { drag = {x: e.clientX, y: e.clientY, moved: false, v: {...VIEWS[key]}}; svg.setPointerCapture(e.pointerId); });
+    svg.addEventListener('pointerdown', e => {
+      const hd = key === 'wiz' && e.target.closest && e.target.closest('[data-draft]');
+      drag = {x: e.clientX, y: e.clientY, moved: false, v: {...VIEWS[key]}, draft: hd ? +hd.dataset.draft : null};
+      svg.setPointerCapture(e.pointerId);
+    });
     svg.addEventListener('pointermove', e => {
       if (!drag) return;
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
       if (!drag.moved) return;
       const sc = drag.v.w / svg.clientWidth, sc2 = drag.v.h / svg.clientHeight, s = Math.min(sc, sc2);
+      if (drag.draft != null) { drag.dx = dx * s; drag.dy = dy * s; $$(`[data-dg="${drag.draft}"]`, svg).forEach(n => n.setAttribute('transform', `translate(${drag.dx} ${drag.dy})`)); return; }
       VIEWS[key].x = drag.v.x - dx * s; VIEWS[key].y = drag.v.y - dy * s; setVB();
     });
     svg.addEventListener('pointerup', e => {
-      if (!drag) return; const moved = drag.moved; drag = null;
+      if (!drag) return; const moved = drag.moved, dd = drag; drag = null;
+      if (moved && dd.draft != null) { const it = S.draft && S.draft.items[dd.draft]; if (it) { it.x = Math.round(it.x + dd.dx); it.y = Math.round(it.y + dd.dy); UI.wizSel = dd.draft; save(); render(); } return; }
       if (moved) return;
       const t = document.elementFromPoint(e.clientX, e.clientY);
       const hitCam = t && t.closest && t.closest('[data-cam]'), hitDraft = t && t.closest && t.closest('[data-draft]');
@@ -1362,6 +1451,7 @@ function ensureDraft() { if (!S.draft) S.draft = {appId: null, items: []}; retur
 function addDraftItem(x, y) {
   const d = ensureDraft();
   if (d.appId) { toast('В повторной подаче исправляются только возвращённые позиции — новые камеры добавьте отдельным заявлением', 'bad'); return; }
+  UI.wizUndo = null;
   d.items.push({x, y, az: 180, fov: 90, range: 70, esvType: 'Внешняя', cls: 'overview', purpose: 'Благоустройство', ai: 'Без ИИ (обзорная)', name: '', ref: false, refUpload: null, justification: '', passWidth: 6});
   UI.wizSel = d.items.length - 1; save(); render();
 }
@@ -1376,9 +1466,9 @@ function startRework(appId) {
 
 /* ---------- отрисовка ---------- */
 const NAV = {
-  owner: [['home','Главная'],['registry','Реестр камер'],['apps','Мои заявления'],['new','Новое заявление'],['agreements','Соглашения с РЯ'],['journal','Журнал']],
-  drb: [['queue','Очередь заявлений'],['control','Контроль прохождения'],['registry','Реестр камер'],['kt2','Сверка ракурса'],['reports','Отчёты'],['journal','Журнал']],
-  rya: [['connect','Подключение'],['faults','Неисправности'],['recon','Сверка с ЕСВ'],['registry','Реестр камер'],['journal','Журнал']],
+  owner: [['home','Главная'],['registry','Реестр камер'],['apps','Мои заявления'],['new','Новое заявление'],['agreements','Соглашения с РЯ'],['journal','Журнал'],['help','Инструкция']],
+  drb: [['queue','Очередь заявлений'],['control','Контроль прохождения'],['registry','Реестр камер'],['kt2','Сверка ракурса'],['reports','Отчёты'],['journal','Журнал'],['help','Инструкция']],
+  rya: [['connect','Подключение'],['faults','Неисправности'],['recon','Сверка с ЕСВ'],['registry','Реестр камер'],['journal','Журнал'],['help','Инструкция']],
 };
 function navCount(p) {
   const own = S.cameras.filter(c => c.org === ROLES.owner.org);
@@ -1404,8 +1494,8 @@ function render() {
   if (!nav.some(n => n[0] === UI.page) && !['app'].includes(UI.page)) UI.page = nav[0][0];
   const unread = myNotes().filter(n => !n.read).length;
   const titles = {home: 'Главная', registry: 'Реестр камер', apps: 'Мои заявления', new: S.draft && S.draft.appId ? 'Доработка заявления ' + S.draft.appId : 'Новое заявление',
-    journal: 'Журнал действий и API', control: 'Контроль прохождения камер', agreements: 'Соглашения с «Ресурсами Ямала»', queue: 'Очередь заявлений', kt2: 'Сверка ракурса (КТ2)', reports: 'Отчёты', connect: 'Подключение к ЕСВ', faults: 'Неисправности', recon: 'Сверка реестра с ЕСВ', app: 'Заявление ' + (UI.appId || '')};
-  const content = ({control: pageControl, agreements: pageAgreements, home: pageHome, registry: pageRegistry, apps: pageApps, new: pageNew, journal: pageJournal, queue: pageQueue, kt2: pageKT2, reports: pageReports, connect: pageConnect, faults: pageFaults, recon: pageRecon, app: pageApp})[UI.page]();
+    journal: 'Журнал действий и API', control: 'Контроль прохождения камер', agreements: 'Соглашения с «Ресурсами Ямала»', queue: 'Очередь заявлений', kt2: 'Сверка ракурса (КТ2)', reports: 'Отчёты', connect: 'Подключение к ЕСВ', faults: 'Неисправности', recon: 'Сверка реестра с ЕСВ', help: 'Инструкция: что, как и зачем', app: 'Заявление ' + (UI.appId || '')};
+  const content = ({control: pageControl, agreements: pageAgreements, home: pageHome, registry: pageRegistry, apps: pageApps, new: pageNew, journal: pageJournal, queue: pageQueue, kt2: pageKT2, reports: pageReports, connect: pageConnect, faults: pageFaults, recon: pageRecon, help: pageHelp, app: pageApp})[UI.page]();
   $('#app').innerHTML = `<div class="app">
     <aside class="side">
       <div class="brand">
@@ -1483,7 +1573,7 @@ function pageHome() {
         <div class="card-b"><button class="btn pri" data-act="nav" data-v="new">+ Новое заявление на размещение</button></div>
       </section>
     </div>
-    <p class="demo-note">Это кликабельный прототип по ТЗ v1.0. Логика процесса собрана в одном модуле, который повторяет серверный API из ТЗ: все проверки, переходы и права выполняются в нём, а интерфейс только вызывает его — в настоящем прототипе этот модуль будет сервером. Переключайте рабочие места слева, чтобы пройти сценарий целиком. Данные хранятся только в вашем браузере.</p>`;
+    <p class="demo-note">Это кликабельный прототип по проекту ТЗ v1.5. Как устроен процесс и что делает каждый участник — в разделе «Инструкция». Логика процесса собрана в одном модуле, который повторяет серверный API из ТЗ: все проверки, переходы и права выполняются в нём, а интерфейс только вызывает его — в настоящем прототипе этот модуль будет сервером. Переключайте рабочие места слева, чтобы пройти сценарий целиком. Данные хранятся только в вашем браузере.</p>`;
 }
 
 /* ----- Реестр ----- */
@@ -1532,7 +1622,7 @@ function pageRegistry() {
   const cell = (x, c) => {
     const v = cellText(x.c, c);
     if (x.c.k === 'derived') return `<td>${pill(v, stateCls[v])}</td>`;
-    if (x.c.k === 'place') return `<td>${pill(v, PLACE[c.place][1])}</td>`;
+    if (x.c.k === 'place') return `<td>${pill(v, PLACE[placeKey(c)][1])}</td>`;
     if (x.c.k === 'esv') return `<td>${pill(v, ESV[c.esv][1])}</td>`;
     if (x.c.k === 'ready') return `<td>${v === 'готово' ? pill(v, 'ok') : v.startsWith('этап') ? `<span class="faint">${esc(v)}</span>` : pill(v, 'warn')}</td>`;
     return `<td class="${x.c.mono ? 'num' : ''}${x.c.k === 'num' ? ' pin' : ''}" title="${esc(v)}">${esc(v)}</td>`;
@@ -1549,7 +1639,7 @@ function pageRegistry() {
       <tr class="ch">${cols.map(x => `<th class="${x.c.k === 'num' ? 'pin' : ''}"><button class="sort" data-act="sort" data-v="${x.c.k}">${esc(x.c.l)}${arrow(x.c.k)}</button></th>`).join('')}</tr></thead>
       <tbody>${rows.map(c => `<tr class="click${c.id === sel ? ' sel' : ''}" data-act="cam" data-v="${c.id}">${cols.map(x => cell(x, c)).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="empty">Ничего не найдено</td></tr>`}</tbody>
     </table></div></section>
-    <p class="demo-note">В таблице — основные поля; карточка камеры (клик по строке) показывает остальные: описание, контакт техподдержки, номер ЕКС, сверку ракурса. Характеристики модели (кодеки, ONVIF, климатическое исполнение) хранятся в справочнике моделей, а не в каждой карточке. Учётные данные в реестре не хранятся — только признак передачи в хранилище секретов.</p>`;
+    <p class="demo-note">В таблице — основные поля; карточка камеры (клик по строке) показывает остальные: описание, контакт техподдержки, сверку ракурса. Характеристики модели (кодеки, ONVIF, климатическое исполнение) хранятся в справочнике моделей, а не в каждой карточке. Учётные данные в реестре не хранятся — только признак передачи в хранилище секретов.</p>`;
 }
 function exportCSV() {
   const {list} = regList();
@@ -1584,7 +1674,7 @@ function renderDrawer() {
   const own = S.role === 'owner';
   const placeOrder = ['planned', 'permitted', 'installed', 'retired'];
   const esvOrder = ['none', 'agreement', 'connected', 'disconnected'];
-  const pl = c.place === 'rejected' ? stepsHTML(['planned'], 'x', PLACE, {on: true, k: 'rejected'}) : stepsHTML(placeOrder, c.place, PLACE);
+  const pl = c.place === 'rejected' ? stepsHTML(['planned'], 'x', PLACE, {on: true, k: placeKey(c)}) : stepsHTML(placeOrder, c.place, PLACE);
   const ev = c.esv === 'suspended' ? stepsHTML(['none', 'agreement', 'connected'], 'x', ESV, {on: true, k: 'suspended'}).replace(/class="st"/g, 'class="st done"') : stepsHTML(esvOrder, c.esv, ESV);
   const m = M(c);
   const pc = c.passport && c.passport.model ? passportChecks(c.passport, c) : null;
@@ -1594,6 +1684,7 @@ function renderDrawer() {
   if (own && ['permitted'].includes(c.place)) acts.push(`<button class="btn pri" data-act="install" data-v="${c.id}">Монтаж и данные для ЕСВ</button>`);
   if (own && c.place === 'installed' && (c.needsPassport || (c.passport && !c.passport.accepted))) acts.push(`<button class="btn pri" data-act="install" data-v="${c.id}">${c.needsPassport ? 'Дозаполнить данные для ЕСВ' : 'Исправить данные для ЕСВ'}</button>`);
   if (c.place === 'installed') acts.push(`<button class="btn" data-act="passdoc" data-v="${c.id}">Паспорт СВН (прил. № 1)</button>`);
+  if (own && c.place === 'installed' && !c.retireApproved) acts.push(`<button class="btn" data-act="change" data-v="${c.id}">Заявление на изменение</button>`);
   if ((own || S.role === 'drb') && c.place === 'installed' && !c.retireApproved) acts.push(`<button class="btn bad" data-act="retire" data-v="${c.id}">Подать заявление на вывод</button>`);
   if (S.role === 'rya' && c.place === 'installed' && c.esv === 'none') acts.push(`<button class="btn pri" data-act="agree" data-v="${c.id}">Включить в соглашение</button>`);
   if (S.role === 'rya' && c.esv === 'agreement') acts.push(`<button class="btn pri" data-act="protocol" data-v="${c.id}">${c.rework ? 'На исправлении у владельца' : 'Проверить и добавить в ЕСВ'}</button>`);
@@ -1712,16 +1803,21 @@ function pageNew() {
   const ov = it ? overlapsFor(it, items) : [];
   const identNeed = it && it.cls === 'ident' ? Math.ceil((+it.passWidth || 6) / 1.9) : 0;
   return `<div class="wiz">
-    <div>${mapHTML('wiz', {cams, drafts: items, draftSel: UI.wizSel, placing: !d.appId, focus, hint: d.appId ? 'Доработка: исправьте сектор и данные возвращённых позиций' : 'Кликните по карте, чтобы поставить камеру'})}</div>
+    <div>${mapHTML('wiz', {cams, drafts: items, draftSel: UI.wizSel, placing: !d.appId, focus, hint: d.appId ? 'Доработка: исправьте точку, сектор и данные возвращённых позиций' : 'Клик по карте — новая камера · точку можно перетащить'})}</div>
     <section class="card">
       <div class="card-h"><h3>${d.appId ? 'Возвращённые позиции' : 'Позиции заявления'}</h3><span class="muted">${items.length} / 50</span></div>
       <div class="card-b" style="display:grid;gap:14px">
         <div class="callout info" style="font-size:12.5px"><b>Этап 1 — заявление.</b> Сейчас нужен только минимум: наименование, точка на карте, направление обзора, назначение и эталонный кадр. Модель, IP-адрес, RTSP и учётные данные вносятся после одобрения — перед подключением к ЕСВ.</div>
-        ${items.length ? `<div class="items">${items.map((x, i) => `<button class="item-tab${i === UI.wizSel ? ' on' : ''}" data-act="wizsel" data-v="${i}">${i + 1}. ${esc(x.name || 'без названия')}</button>`).join('')}</div>` : `<div class="callout info">Поставьте на карте точку предполагаемой установки. Сектор обзора задаётся ползунками — он сразу рисуется на карте рядом с уже существующими камерами.</div>`}
+        ${UI.wizUndo ? `<div class="callout info row" style="padding:6px 8px 6px 12px"><span class="grow">${esc(UI.wizUndo.text)}</span><button class="btn sm" data-act="wizundo">Вернуть</button></div>` : ''}
+        ${items.length ? (() => { const iss = items.map(x => draftIssues(x, items)), ready = iss.filter(x => !x.length).length, empty = items.filter(draftEmpty).length;
+          return `<div class="row" style="gap:8px"><span class="muted grow" style="font-size:12.5px">Готово к подаче: <b>${ready}</b> из ${items.length}${ready < items.length ? ' · <i class="dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--warn)"></i> — не хватает данных' : ''}</span>${!d.appId && empty ? `<button class="btn sm" data-act="wizdelempty" title="Позиции без наименования и эталонного кадра — обычно это случайные клики по карте">Удалить пустые (${empty})</button>` : ''}</div>
+          <div class="items">${items.map((x, i) => `<span class="item-tab${i === UI.wizSel ? ' on' : ''}${iss[i].length ? ' todo' : ''}"><button data-act="wizsel" data-v="${i}" title="${iss[i].length ? 'Не хватает: ' + esc(iss[i].join(', ')) : 'Готово к подаче'}"><i class="dot"></i><span class="tl${x.name.trim() ? '' : ' noname'}" title="${x.name.trim() ? '' : 'Название ещё не указано — показан адрес'}">${esc(tabLabel(x, i))}</span></button>${d.appId ? '' : `<button class="x" data-act="wizdelone" data-v="${i}" aria-label="Удалить позицию ${i + 1}" title="Удалить позицию">×</button>`}</span>`).join('')}</div>`; })()
+          : `<div class="callout info">Поставьте на карте точку предполагаемой установки. Сектор обзора задаётся ползунками — он сразу рисуется на карте рядом с уже существующими камерами. Точку можно перетащить мышью, лишнюю — удалить крестиком.</div>`}
         ${it ? `
+          <div class="row" style="border-top:1px solid var(--line);padding-top:12px"><b class="grow">Позиция ${UI.wizSel + 1}</b>${d.appId ? '' : `<button class="btn sm bad" data-act="wizdel">Удалить позицию</button>`}</div>
           ${it.returned ? `<div class="callout warn"><b>Замечание ДРБ:</b> ${esc(it.returned.reasons.map(r => REASONS[r]).join('; '))}${it.returned.comment ? ' — ' + esc(it.returned.comment) : ''}</div>` : ''}
           <label class="fld"><span>Наименование камеры</span><input type="text" id="w-name" data-wiz="name" value="${esc(it.name)}" placeholder="Например: Двор мкр 9, въезд"></label>
-          <div class="muted" style="font-size:12.5px">${esc(districtOf(it.x, it.y))} · ${esc(addressAt(it.x, it.y))} · ${toLatLon(it.x, it.y).map(v => v.toFixed(5)).join(', ')}</div>
+          <div class="muted" style="font-size:12.5px">${esc(addressAt(it.x, it.y))} · ${esc(districtOf(it.x, it.y).replace(/^г\. Ноябрьск, /, ''))} · ${toLatLon(it.x, it.y).map(v => v.toFixed(5)).join(', ')} · точку можно перетащить</div>
           <label class="fld"><span>Тип камеры (классификатор ЕСВ)</span><select id="w-etype" data-wiz="esvType">${ESV_TYPES.map(t => `<option${(it.esvType || 'Внешняя') === t ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
           ${['Подъездная камера', 'Домофон'].includes(it.esvType) ? `<div class="callout info" style="font-size:12.5px">Рекомендации АТК для подъездов: снаружи — обзор пространства перед входной дверью, лицо входящего не менее 25 % кадра, высота установки около 175 см; внутри — лифтовый холл или лестничный марш.</div>` : it.esvType === 'Внутриобъектовая' ? `<div class="callout info" style="font-size:12.5px">Для внутриобъектовой камеры точка на карте — место объекта; адрес и описание помещения укажите в наименовании.</div>` : ''}
           <div class="grid3">
@@ -1738,7 +1834,6 @@ function pageNew() {
           <div class="fld"><span>Эталонный кадр — фото того, что будет видеть камера</span>
             <div class="refimg">${it.ref ? `<img alt="Эталонный кадр" src="${it.refUpload || frameURL(it.refSeed || ('Позиция ' + (UI.wizSel + 1)))}">` : `<div class="ph">нет кадра —<br>подать нельзя</div>`}
               <div class="row"><label class="btn sm" style="cursor:pointer">Загрузить фото<input type="file" id="w-file" accept="image/*" hidden></label><button class="btn sm" data-act="wizgen">Сгенерировать пример</button>${it.ref ? '<button class="btn sm" data-act="wizclearref">Убрать</button>' : ''}</div></div></div>
-          ${d.appId ? '' : `<div class="row"><button class="btn sm bad" data-act="wizdel">Удалить позицию</button></div>`}
         ` : ''}
         <div class="row" style="border-top:1px solid var(--line);padding-top:12px">
           <span class="muted grow" style="font-size:12.5px">Черновик сохраняется автоматически. Проверки выполняет сервер при подаче.</span>
@@ -1757,7 +1852,7 @@ function refreshWizMap() {
   const d = S.draft; if (!d) return;
   const m = $('.map[data-map="wiz"]'); if (!m) return;
   const cams = API.listCameras().filter(c => derived(c) !== 'arch' && !d.items.some(i => i.camId === c.id));
-  m.outerHTML = mapHTML('wiz', {cams, drafts: d.items, draftSel: UI.wizSel, placing: !d.appId, hint: d.appId ? 'Доработка: исправьте сектор и данные возвращённых позиций' : 'Кликните по карте, чтобы поставить камеру'});
+  m.outerHTML = mapHTML('wiz', {cams, drafts: d.items, draftSel: UI.wizSel, placing: !d.appId, hint: d.appId ? 'Доработка: исправьте точку, сектор и данные возвращённых позиций' : 'Клик по карте — новая камера · точку можно перетащить'});
   attachMaps();
   const it = d.items[UI.wizSel], box = $('#ovbox');
   if (it && box && !box.contains(document.activeElement)) box.innerHTML = ovBox(overlapsFor(it, d.items), it);
@@ -1783,7 +1878,8 @@ function pageApp() {
       <div class="grow"></div>
       <div class="muted">Решено ${decided} из ${a.items.length}</div>
       ${drb && a.status === 'submitted' ? `<button class="btn pri" data-act="take" data-v="${a.id}">Взять в работу</button>` : ''}
-      ${!drb && a.status === 'rework' ? `<button class="btn pri" data-act="rework" data-v="${a.id}">Исправить и подать повторно</button>` : ''}
+      ${!drb && a.status === 'rework' && a.kind === 'place' ? `<button class="btn pri" data-act="rework" data-v="${a.id}">Исправить и подать повторно</button>` : ''}
+      ${!drb && a.org === ROLES.owner.org && [...ACTIVE, 'rework'].includes(a.status) ? `<button class="btn" data-act="withdraw" data-v="${a.id}">Отозвать заявление</button>` : ''}
       ${a.kind === 'retire' && a.reason ? `<div style="flex-basis:100%" class="callout warn">Причина вывода: ${esc(a.reason)}. Подписчики уведомлены при подаче.</div>` : ''}
     </div></div>`;
   const pos = a.items.map((it, idx) => {
@@ -1795,9 +1891,10 @@ function pageApp() {
         return `<div class="secr ${s ? (s.result === 'pos' ? 'p' : 'n') : ''}"><b>${t}</b><span>${s ? (s.result === 'pos' ? 'Согласовано' : 'Не согласовано') + ' · ' + fmtD(s.date) : 'Ожидается ответ'}</span>${!s && canAdd ? `<button class="btn sm" data-act="sec" data-v="${idx}" data-ag="${k}">Внести ответ</button>` : '<span></span>'}</div>`;
       }).join('')}</div></div>` : '';
     return `<div class="pos${UI.focusItem === idx ? ' focus' : ''}">
-      <div class="pos-h"><span class="num">${c.num}</span><b>${esc(c.name)}</b><span class="grow"></span>${dec ? pill(...{approve: ['Одобрено','ok'], rework: ['На доработку','warn'], refuse: ['Отказано','bad']}[dec.outcome]) : pill('Ожидает решения','info')}<button class="btn sm" data-act="focusitem" data-v="${idx}">На карте</button></div>
+      <div class="pos-h"><span class="num">${c.num}</span><b>${esc(c.name)}</b><span class="grow"></span>${dec ? pill(...{approve: ['Одобрено','ok'], rework: ['На доработку','warn'], refuse: ['Отказано','bad'], withdrawn: ['Отозвана заявителем','mute']}[dec.outcome]) : pill('Ожидает решения','info')}<button class="btn sm" data-act="focusitem" data-v="${idx}">На карте</button></div>
       <div class="pos-b"><img alt="Эталонный кадр ${c.num}" src="${frameOf(c)}">
         <div><div class="muted" style="font-size:13px">${esc(c.address)} · ${CLS[c.cls]} · ${esc(c.purpose)} · азимут ${c.az}°, угол ${c.fov}°</div>
+          ${it.change ? `<div class="callout ${dec && dec.outcome === 'approve' ? 'ok' : 'info'}" style="margin-top:8px;font-size:12.5px"><b>${dec && dec.outcome === 'approve' ? 'Изменено' : 'Просят изменить'}:</b> ${esc(changeText(it.change))}${c.esvId && !dec ? '<br>После одобрения платформа сама обновит запись в ЕСВ.' : ''}${a.reason ? '<br>Причина: ' + esc(a.reason) : ''}</div>` : ''}
           <div class="checks" style="margin-top:6px">
             <div class="chk ok"><span class="ic">✓</span><span>Эталонный кадр, координаты и азимут приложены</span></div>
             ${a.kind === 'place' ? (ov.length ? `<div class="chk warn"><span class="ic">!</span><span>Перекрытие с ${esc(ov[0].num)} (${Math.round(ov[0].frac * 100)} %)${it.justification ? '. Обоснование: «' + esc(it.justification) + '»' : ''}</span></div>` : `<div class="chk ok"><span class="ic">✓</span><span>Дублирования обзора нет</span></div>`) : ''}
@@ -1805,12 +1902,105 @@ function pageApp() {
           </div>${sec}
           ${it.prev ? `<div class="faint" style="font-size:12px;margin-top:6px">Прошлое решение: на доработку — ${esc(it.prev.reasons.map(r => REASONS[r]).join('; '))}</div>` : ''}
         </div></div>
+      ${!drb && a.org === ROLES.owner.org && [...ACTIVE, 'rework'].includes(a.status) && a.items.filter(i => !i.decision || i.decision.outcome === 'rework').length > 1 && (!dec || dec.outcome === 'rework') ? `<div class="decision"><button class="btn sm" data-act="withdraw" data-v="${a.id}" data-i="${idx}">Отозвать позицию</button><span class="faint" style="font-size:12px">если камера больше не нужна или поставлена по ошибке</span></div>` : ''}
       ${dec ? `<div class="decision"><span class="muted" style="font-size:12.5px">${esc(dec.by)}, ${fmtDT(dec.at)}${dec.reasons.length ? ' · ' + dec.reasons.map(r => `${r} ${esc(REASONS[r])}`).join('; ') : ''}${dec.comment ? ' · «' + esc(dec.comment) + '»' : ''}</span></div>`
         : (drb && ['security', 'review'].includes(a.status) ? `<div class="decision"><button class="btn ok" data-act="decide" data-v="${idx}" data-o="approve">${a.kind === 'retire' ? 'Одобрить вывод' : 'Одобрить'}</button>${a.kind === 'place' ? `<button class="btn warn" data-act="decide" data-v="${idx}" data-o="rework">На доработку</button>` : ''}<button class="btn bad" data-act="decide" data-v="${idx}" data-o="refuse">${a.kind === 'retire' ? 'Не удалять' : 'Отказать'}</button></div>` : '')}
     </div>`;
   }).join('');
   return `${head}<div class="split eq"><div style="display:grid;gap:12px">${pos}</div>
     <div style="position:sticky;top:90px">${mapHTML('app-' + a.id, {cams: [...others, ...cams], selId: cams[UI.focusItem] ? cams[UI.focusItem].id : null, focus})}</div></div>`;
+}
+
+
+/* ----- Инструкция ----- */
+function pageHelp() {
+  const me = S.role;
+  const box = (role, title, body) => `<section class="card${role === me ? ' mine' : ''}"><div class="card-h"><h3>${title}</h3>${role === me ? '<span class="pill accent">ваше рабочее место</span>' : `<button class="btn sm" data-act="role" data-v="${role}">Открыть это рабочее место</button>`}</div><div class="card-b">${body}</div></section>`;
+  return `<div class="help">
+  <section class="card"><div class="card-b">
+    <h2>Зачем эта платформа</h2>
+    <p>Цель — <b>единый реестр камер</b> ЯНАО: все камеры, подключённые к Единой системе видеонаблюдения (ЕСВ), и камеры-кандидаты на подключение. У каждой камеры одна карточка с постоянным номером (NOY-000NN) и полной историей: кто, когда и что решил.</p>
+    <p>Камера попадает в реестр и меняется только через <b>заявления</b>: на размещение, изменение и вывод. Платформа заменяет переписку, таблицы с паролями по почте и слой согласования в ЕКС. Все проверки, сроки и права выполняет сервер, а не браузер. В прототипе сервер имитирует модуль API в странице, его вызовы видны в разделе «Журнал» → «Вызовы API».</p>
+  </div></section>
+
+  <section class="card"><div class="card-h"><h3>Путь камеры — 6 этапов</h3><span class="muted">виден всем участникам в карточке камеры</span></div><div class="card-b">
+    <table><thead><tr><th>Этап</th><th>Кто отвечает</th><th>Срок</th><th>Что происходит и зачем</th></tr></thead><tbody>
+      <tr><td><b>1. Заявление</b></td><td>Владелец</td><td>—</td><td>Точка на карте, сектор обзора, назначение, эталонный кадр. <span class="why">Этого хватает ДРБ, чтобы решить, нужна ли камера здесь. Технические данные на этом этапе не нужны: камеры ещё нет.</span></td></tr>
+      <tr><td><b>2. Решение ДРБ</b></td><td>ДРБ</td><td>10 раб. дней</td><td>Решение по каждой камере отдельно: одобрить, вернуть на доработку или отказать с причиной из справочника. Для назначения «общественная безопасность» сначала нужны ответы силового блока. <span class="why">Одно заявление — до 50 камер, но одна спорная камера не задерживает остальные.</span></td></tr>
+      <tr><td><b>3. Монтаж и данные для ЕСВ</b></td><td>Владелец</td><td>согласование действует 6 мес.</td><td>После монтажа: модель, IP-адрес, RTSP-ссылка с логином и паролем, канал до узла РМТКС, фактический азимут, данные паспорта СВН, техподдержка. <span class="why">Пароль сразу уходит в хранилище секретов, в интерфейсе он скрыт.</span></td></tr>
+      <tr><td><b>4. Соглашение с РЯ</b></td><td>«Ресурсы Ямала»</td><td rowspan="2">5 раб. дней на оба этапа</td><td>Камеру добавляют в перечень к соглашению организации. Паспорт СВН (приложение № 1) формирует платформа из карточки. <span class="why">Так бумаги не расходятся с реестром.</span></td></tr>
+      <tr><td><b>5. Проверка и добавление в ЕСВ</b></td><td>«Ресурсы Ямала»</td><td>Четыре пункта: карточка, видеопоток, канал, запись для ЕСВ. После этого кнопка «Добавить в ЕСВ» создаёт камеру в ЕСВ через API. <span class="why">Никто не переносит данные вручную из таблиц.</span></td></tr>
+      <tr><td><b>6. В ЕСВ</b></td><td>—</td><td>—</td><td>Камера рабочая. Неисправность → заявка подрядчику техподдержки. Изменение или вывод → новое заявление.</td></tr>
+    </tbody></table>
+    <p class="faint" style="font-size:12.5px;margin-top:8px">Две оси состояния: <b>размещение</b> (планируется → одобрена → смонтирована → выведена) и <b>подключение к ЕСВ</b> (не подключена → соглашение → подключена → отключена). Из них получается то, что видно в реестре: кандидат, рабочая, неисправна, архив. Камеры не удаляются, а уходят в архив.</p>
+  </div></section>
+
+  ${box('owner', 'Владелец камеры (МО, ЕДДС, учреждение)', `
+    <h4>1. Подать заявление на размещение</h4>
+    <ol>
+      <li>«Новое заявление» → кликните по карте в месте установки. Каждый клик — новая камера (до 50 в заявлении).</li>
+      <li><b>Лишнюю точку</b> удалите крестиком на вкладке позиции. «Удалить пустые» уберёт все случайные клики сразу: позиции без названия и кадра. Удаление можно отменить кнопкой «Вернуть».</li>
+      <li><b>Неточную точку</b> перетащите мышью. Направление и ширину обзора задайте ползунками — сектор сразу виден на карте рядом с чужими камерами.</li>
+      <li>Заполните минимум: наименование, тип по классификатору ЕСВ, класс, назначение, целевой ИИ, эталонный кадр (фото того, что должна видеть камера).</li>
+      <li>Если сектор перекрывает существующую камеру, напишите обоснование. <span class="why">Так в реестр не попадают дубли.</span></li>
+      <li>Оранжевая точка на вкладке — позиции чего-то не хватает. Когда все зелёные, нажмите «Подать заявление». Черновик сохраняется сам.</li>
+    </ol>
+    <h4>2. Дождаться решения</h4>
+    <ol>
+      <li>«Мои заявления»: статус и срок (10 раб. дней).</li>
+      <li>Вернули на доработку — «Исправить и подать повторно». Исправлять можно точку, сектор и данные, срок продолжается с того места, где остановился.</li>
+      <li>Ошиблись или камера больше не нужна — «Отозвать позицию» или «Отозвать заявление», пока по ним нет решения.</li>
+    </ol>
+    <h4>3. После одобрения</h4>
+    <ol>
+      <li>Смонтируйте камеру в течение 6 месяцев и нажмите «Монтаж и данные для ЕСВ» (задача на главной).</li>
+      <li>RTSP-ссылку вставьте целиком, с логином и паролем, как её отдаёт камера. После сохранения пароль скрывается (<span class="num">rtsp://логин:••••@…</span>) и хранится отдельно.</li>
+      <li>Модели нет в списке — выберите «Другая модель» и приложите спецификацию. «Ресурсы Ямала» проверят её и внесут в справочник.</li>
+    </ol>
+    <h4>4. Эксплуатация</h4>
+    <ul>
+      <li>Камера недоступна — заявка уходит подрядчику техподдержки автоматически. Вы видите её на главной.</li>
+      <li>Нужно повернуть камеру, переименовать её или сменить назначение — «Заявление на изменение» в карточке. После одобрения ДРБ запись в ЕСВ обновится сама.</li>
+      <li>Камера больше не нужна — «Подать заявление на вывод». Подписчики узнают об этом сразу, отключит РЯ после одобрения ДРБ.</li>
+    </ul>`)}
+
+  ${box('drb', 'ДРБ ЯНАО — согласование и контроль', `
+    <ol>
+      <li><b>Очередь заявлений</b> — сортировка по сроку, просроченные видны сразу. Откройте заявление → «Взять в работу».</li>
+      <li>Для назначения «общественная безопасность» внесите ответы УМВД, УФСБ, ФСО и ГУ МЧС. <span class="why">Одобрить позицию без всех ответов сервер не даст.</span></li>
+      <li>По каждой камере: «Одобрить», «На доработку» или «Отказать» с причиной R01–R99. <span class="why">Причины из справочника потом видны в отчётах: где владельцы чаще ошибаются.</span></li>
+      <li>Заявления на изменение одобряются или отклоняются. Заявления на вывод одобряются или получают «Не удалять» с комментарием.</li>
+      <li><b>Контроль прохождения</b> — где застряла каждая камера после одобрения и кто за это отвечает (владелец или РЯ).</li>
+      <li><b>Сверка ракурса</b> — фактический кадр не совпал с эталоном: решите, приемлемо ли это. Подключение это не блокирует.</li>
+      <li><b>Отчёты</b> — решения, причины отказов, камеры по организациям.</li>
+    </ol>`)}
+
+  ${box('rya', '«Ресурсы Ямала» — оператор ЕСВ', `
+    <ol>
+      <li><b>Подключение → Новые модели на проверке</b> — внесите модель в справочник или отклоните с причиной.</li>
+      <li><b>1. Включить в соглашение</b> — выберите соглашение организации или оформите новое (номер, дата, скан).</li>
+      <li><b>2. Проверка и добавление в ЕСВ</b> — четыре пункта: карточка (проверяется автоматически), видеопоток через esvcheck (пароль подставляется из хранилища), замер канала до узла РМТКС, подтверждение записи. Потом «Добавить в ЕСВ»: камера создаётся в ЕСВ через API, её ID записывается в реестр.</li>
+      <li>Нашли ошибку в данных — «Вернуть владельцу» с комментарием: владелец увидит его задачей на главной.</li>
+      <li><b>Неисправности</b> — открытые заявки подрядчикам и их сроки. <b>Сверка с ЕСВ</b> — расхождения реестра и ЕСВ.</li>
+      <li>Пароль камеры можно открыть только с указанием цели. Каждый просмотр пишется в журнал.</li>
+    </ol>`)}
+
+  <section class="card"><div class="card-h"><h3>Частые вопросы</h3></div><div class="card-b"><table><tbody>
+    <tr><td><b>Случайно натыкал лишних камер</b></td><td>До подачи: крестик на вкладке или «Удалить пустые», отмена — «Вернуть». После подачи: «Отозвать позицию» в заявлении, пока ДРБ не решил.</td></tr>
+    <tr><td><b>Ошибся в точке или азимуте</b></td><td>До подачи — перетащите точку или подвиньте ползунок. После одобрения и монтажа — «Заявление на изменение». Перенос в другое место — вывод и новое заявление.</td></tr>
+    <tr><td><b>Сменился пароль камеры</b></td><td>В прототипе пока не реализовано. В целевой системе — отдельная операция «Обновить учётные данные» без согласования ДРБ: новый пароль сразу уходит в хранилище и в ЕСВ.</td></tr>
+    <tr><td><b>Почему нельзя ввести всё сразу</b></td><td>Технические данные появляются только после монтажа, а решение ДРБ нужно до покупки и монтажа. Два этапа избавляют от лишней работы по камерам, которым откажут.</td></tr>
+    <tr><td><b>Кто видит мои камеры</b></td><td>Чужие камеры владелец видит только как точку и сектор, без технических данных. ДРБ и РЯ видят всё, пароль — только РЯ и с записью в журнал.</td></tr>
+  </tbody></table></div></section>
+
+  <section class="card"><div class="card-b"><h2>Как пользоваться прототипом</h2><ul>
+    <li>Слева переключаются рабочие места: владелец, ДРБ, «Ресурсы Ямала». Пройдите одну камеру по всем этапам, переключаясь между ними.</li>
+    <li>Данные хранятся только в вашем браузере. «Сбросить демо-данные» внизу слева возвращает исходное состояние.</li>
+    <li>«Журнал» → «Вызовы API» показывает, какие запросы уходят на сервер и что он отвечает, включая отказы (403, 409, 422).</li>
+    <li>В «Неисправностях» у РЯ можно смоделировать отказ камеры и посмотреть, как уходит заявка подрядчику.</li>
+    <li>Подложка карты — ЕКС ЯНАО. Если сервис недоступен, прототип показывает встроенную копию.</li>
+  </ul></div></section>
+  </div>`;
 }
 
 /* ----- ДРБ ----- */
@@ -1843,7 +2033,7 @@ function pageReports() {
   const decs = S.apps.flatMap(a => a.items.filter(i => i.decision).map(i => i.decision));
   const rc = {}; decs.forEach(d => d.reasons.forEach(r => rc[r] = (rc[r] || 0) + 1));
   const rows = Object.entries(rc).sort((a, b) => b[1] - a[1]); const max = Math.max(1, ...rows.map(r => r[1]));
-  const outc = {approve: 0, rework: 0, refuse: 0}; decs.forEach(d => outc[d.outcome]++);
+  const outc = {approve: 0, rework: 0, refuse: 0, withdrawn: 0}; decs.forEach(d => outc[d.outcome]++);
   const orgRows = Object.entries(ORGS).map(([k, o]) => { const cs = S.cameras.filter(c => c.org === k); const n = {}; Object.keys(DERIVED).forEach(d => n[d] = cs.filter(c => derived(c) === d).length); return [o.short, n, cs.length]; });
   const colors = {work: 'var(--ok)', cand: 'var(--info)', fault: 'var(--bad)', arch: 'var(--mute)'};
   return `<div class="kpis">
@@ -2025,7 +2215,7 @@ function mDecide(idx, outcome) {
   const a = appById(UI.appId), c = cam(a.items[idx].camId);
   if (outcome === 'approve') { const r = call('POST', `/api/v1/applications/${a.id}/items/${c.num}/decision`, () => API.decide(a.id, idx, 'approve', [], '')); if (r) { toast(`${c.num}: одобрено`); afterChange(); } return; }
   const t = outcome === 'rework' ? 'На доработку' : (a.kind === 'retire' ? 'Не удалять' : 'Отказ');
-  const reasons = a.kind === 'retire' ? '' : `<div class="fld"><span>Причины (справочник)</span><div class="check-list">${Object.entries(REASONS).map(([k, v]) => `<label><input type="checkbox" name="rs" value="${k}"> <span><b class="num">${k}</b> ${esc(v)}</span></label>`).join('')}</div></div>`;
+  const reasons = a.kind !== 'place' ? '' : `<div class="fld"><span>Причины (справочник)</span><div class="check-list">${Object.entries(REASONS).map(([k, v]) => `<label><input type="checkbox" name="rs" value="${k}"> <span><b class="num">${k}</b> ${esc(v)}</span></label>`).join('')}</div></div>`;
   modal(`${t} · ${c.num}`, `${reasons}<label class="fld"><span>Комментарий для владельца</span><textarea id="f-comment"></textarea></label>`,
     `<button class="btn" data-act="mclose">Отмена</button><button class="btn ${outcome === 'rework' ? 'warn' : 'bad'}" data-act="m-decide" data-v="${idx}" data-o="${outcome}">${t}</button>`);
 }
@@ -2138,6 +2328,24 @@ function passDocHTML(c) {
   <p>Поставщик информации: ${ORGS[c.org].name}</p><table>${rows.map(([g, rs]) => `<tr><th colspan="2">${g}</th></tr>${rs.map(([k, v]) => `<tr><td>${k}</td><td>${v == null || v === '' ? '' : v}</td></tr>`).join('')}`).join('')}</table>
   <p>Сформировано в платформе «Единый реестр камер» ${fmtD(S.clock)}.</p></html>`;
 }
+function mWithdraw(appId, idx) {
+  const a = appById(appId), one = idx != null, c = one ? cam(a.items[idx].camId) : null;
+  const left = a.items.filter(i => !i.decision || i.decision.outcome === 'rework').length;
+  modal(one ? `Отозвать позицию · ${c.num}` : `Отозвать заявление · ${a.id}`,
+    `<div class="muted">${one ? esc(c.name) : `${KIND[a.kind]} · позиций, по которым ещё нет решения: ${left}`}</div>
+     <div class="callout warn" style="font-size:12.5px">${a.kind === 'place' ? 'Камера уйдёт в архив реестра с отметкой «отозвана заявителем» — номер не переиспользуется, история сохраняется. Если камера всё-таки понадобится, подайте новое заявление.' : 'Заявление перестанет рассматриваться, камера останется как есть.'} Решения ДРБ, которые уже приняты, не отменяются.</div>`,
+    `<button class="btn" data-act="mclose">Отмена</button><button class="btn bad" data-act="m-withdraw" data-v="${appId}"${one ? ` data-i="${idx}"` : ''}>${one ? 'Отозвать позицию' : 'Отозвать заявление'}</button>`);
+}
+function mChange(id) {
+  const c = cam(id), sel = (idn, list, cur, lab = x => x) => `<select id="${idn}">${list.map(x => `<option value="${esc(x)}"${x === cur ? ' selected' : ''}>${esc(lab(x))}</option>`).join('')}</select>`;
+  modal(`Заявление на изменение · ${c.num}`, `<div class="muted">${esc(c.name)} · ${esc(c.address)}</div>
+    <div class="callout info" style="font-size:12.5px">Меняйте только то, что действительно изменилось. ДРБ согласует изменение; для подключённой камеры платформа сама обновит запись в ЕСВ. Перенос камеры в другое место — это вывод старой и новое заявление на размещение.</div>
+    <label class="fld"><span>Наименование</span><input type="text" id="f-cname" value="${esc(c.name)}"></label>
+    <div class="grid2"><label class="fld"><span>Азимут, °</span><input type="number" id="f-caz" min="0" max="359" value="${c.az}"></label><label class="fld"><span>Угол обзора, °</span><input type="number" id="f-cfov" min="10" max="360" value="${c.fov}"></label></div>
+    <div class="grid3"><label class="fld"><span>Класс</span>${sel('f-ccls', Object.keys(CLS), c.cls, k => CLS[k])}</label><label class="fld"><span>Назначение</span>${sel('f-cpur', PURPOSES, c.purpose)}</label><label class="fld"><span>Целевой ИИ</span>${sel('f-cai', AIS, c.ai)}</label></div>
+    <label class="fld"><span>Причина изменения — увидит ДРБ</span><textarea id="f-creason" placeholder="Например: после реконструкции перекрёстка камеру развернули на новый пешеходный переход"></textarea></label>`,
+    `<button class="btn" data-act="mclose">Отмена</button><button class="btn pri" data-act="m-change" data-v="${id}">Подать заявление</button>`);
+}
 function mRetire(id) {
   const c = cam(id);
   modal(`Заявление на вывод · ${c.num}`, `<div class="muted">${esc(c.name)}</div><label class="fld"><span>Причина вывода</span><textarea id="f-reason" placeholder="Например: демонтаж опоры, реконструкция перекрёстка"></textarea></label>
@@ -2194,6 +2402,10 @@ document.addEventListener('click', e => {
     case 'rework': closeCam(); startRework(v); break;
     case 'install': mInstall(v); break;
     case 'retire': mRetire(v); break;
+    case 'change': mChange(v); break;
+    case 'withdraw': mWithdraw(v, el.dataset.i != null ? +el.dataset.i : null); break;
+    case 'm-withdraw': { const idx = el.dataset.i != null ? +el.dataset.i : null, a0 = appById(v); const a = call('POST', idx == null ? `/api/v1/applications/${v}/withdraw` : `/api/v1/applications/${v}/items/${cam(a0.items[idx].camId).num}/withdraw`, () => API.withdraw(v, idx)); if (a) { toast(idx == null ? `Заявление ${a.id} отозвано` : 'Позиция отозвана'); afterChange(); } break; }
+    case 'm-change': { const c = cam(v); const a = call('POST', `/api/v1/cameras/${c.num}/change-applications`, () => API.change(v, {name: $('#f-cname').value.trim(), az: +$('#f-caz').value, fov: +$('#f-cfov').value, cls: $('#f-ccls').value, purpose: $('#f-cpur').value, ai: $('#f-cai').value}, $('#f-creason').value)); if (a) { toast(`Заявление на изменение ${a.id} подано в ДРБ`); afterChange(); } break; }
     case 'agree': mAgree(v); break;
     case 'protocol': UI.recOk = {}; mEsvAdd(v); break;
     case 'secret': mSecret(v); break;
@@ -2208,12 +2420,19 @@ document.addEventListener('click', e => {
     case 'recon': { const r = call('POST', '/api/v1/reconciliation/run', () => API.runRecon()); if (r) { toast(`Сверка выполнена: расхождений ${r.length}`); render(); } break; }
     case 'discr': if (call('POST', `/api/v1/discrepancies/${v}/resolve`, () => API.resolveDiscr(v, el.dataset.o))) { toast('Расхождение разобрано'); render(); } break;
     case 'wizsel': UI.wizSel = +v; render(); break;
-    case 'wizdel': S.draft.items.splice(UI.wizSel, 1); UI.wizSel = Math.max(0, UI.wizSel - 1); save(); render(); break;
-    case 'wizclear': S.draft = null; save(); render(); break;
+    case 'wizdel': case 'wizdelone': case 'wizdelempty': case 'wizclear': {
+      const d = S.draft, snap = JSON.parse(JSON.stringify(d.items)), sel = UI.wizSel;
+      const drop = act === 'wizdelone' ? [+v] : act === 'wizdel' ? [UI.wizSel] : act === 'wizclear' ? d.items.map((_, i) => i) : d.items.map((x, i) => draftEmpty(x) ? i : -1).filter(i => i >= 0);
+      d.items = d.items.filter((_, i) => !drop.includes(i));
+      UI.wizUndo = {items: snap, sel, text: drop.length === 1 ? `Позиция ${drop[0] + 1} удалена.` : `Удалено позиций: ${drop.length}.`};
+      if (UI.wizSel >= d.items.length || drop.includes(UI.wizSel)) UI.wizSel = Math.max(0, Math.min(d.items.length - 1, drop[0] - (drop[0] > 0 ? 1 : 0)));
+      else UI.wizSel -= drop.filter(i => i < UI.wizSel).length;
+      save(); render(); break; }
+    case 'wizundo': if (UI.wizUndo) { S.draft = S.draft || {appId: null, items: []}; S.draft.items = UI.wizUndo.items; UI.wizSel = UI.wizUndo.sel; UI.wizUndo = null; save(); render(); } break;
     case 'wizcancel': S.draft = null; UI.page = 'apps'; save(); render(); break;
     case 'wizgen': { const it = S.draft.items[UI.wizSel]; it.ref = true; it.refUpload = null; it.refSeed = 'Кадр ' + Math.random().toString(36).slice(2, 6).toUpperCase(); save(); render(); break; }
     case 'wizclearref': { const it = S.draft.items[UI.wizSel]; it.ref = false; it.refUpload = null; save(); render(); break; }
-    case 'wizsubmit': { const re = !!S.draft.appId; const a = call('POST', re ? `/api/v1/applications/${S.draft.appId}/resubmit` : '/api/v1/applications', () => API.submitDraft()); if (a) { toast(re ? `Заявление ${a.id} подано повторно` : `Заявление ${a.id} подано: ${a.items.length} кам.`); UI.appId = a.id; UI.page = 'app'; delete VIEWS.wiz; render(); } break; }
+    case 'wizsubmit': { UI.wizUndo = null; const re = !!S.draft.appId; const a = call('POST', re ? `/api/v1/applications/${S.draft.appId}/resubmit` : '/api/v1/applications', () => API.submitDraft()); if (a) { toast(re ? `Заявление ${a.id} подано повторно` : `Заявление ${a.id} подано: ${a.items.length} кам.`); UI.appId = a.id; UI.page = 'app'; delete VIEWS.wiz; render(); } break; }
     case 'mclose': closeModal(); window._factFrame = null; break;
     case 'passdoc': mPassDoc(v); break;
     case 'passdl': { const c = cam(v); if (DL) DL.save({filename: `Паспорт_СВН_${c.num}.html`, data: passDocHTML(c)}).then(() => toast('Паспорт сохранён')).catch(err => { if (err && err.code !== 'declined') toast('Не удалось сохранить: ' + (err.message || err.code), 'bad'); }); break; }
@@ -2236,7 +2455,7 @@ document.addEventListener('click', e => {
     case 'm-decide': {
       const a = appById(UI.appId), c = cam(a.items[+v].camId);
       const rs = $$('input[name=rs]:checked').map(x => x.value), cm = $('#f-comment').value;
-      const o = el.dataset.o, outcome = a.kind === 'retire' && o === 'refuse' ? 'refuse' : o;
+      const o = el.dataset.o, outcome = o;
       if (call('POST', `/api/v1/applications/${a.id}/items/${c.num}/decision`, () => API.decide(a.id, +v, outcome, rs, cm))) { toast(`${c.num}: решение сохранено`); afterChange(); }
       break; }
     case 'm-sec': {
@@ -2261,7 +2480,7 @@ document.addEventListener('input', e => {
     const it = S.draft.items[UI.wizSel]; const k = t.dataset.wiz;
     it[k] = ['az', 'fov', 'range', 'passWidth'].includes(k) ? +t.value : t.value;
     const o = $('#o-' + k); if (o) o.textContent = it[k] + (k === 'range' ? ' м' : '°');
-    if (k === 'name') { const tab = $$('.item-tab')[UI.wizSel]; if (tab) tab.textContent = `${UI.wizSel + 1}. ${it.name || 'без названия'}`; }
+    if (k === 'name') { const tab = $$('.item-tab')[UI.wizSel]; if (tab) { $('.tl', tab).textContent = tabLabel(it, UI.wizSel); $('.tl', tab).classList.toggle('noname', !it.name.trim()); tab.classList.toggle('todo', draftIssues(it, S.draft.items).length > 0); } }
     save();
     if (['az', 'fov', 'range'].includes(k)) refreshWizMap();
   }
