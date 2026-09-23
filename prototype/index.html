@@ -747,7 +747,6 @@ const STAGE2 = [
   ['Учётные данные (хранятся зашифрованно)', c => !!(c.secret && c.secret.given)], ['PTZ-учётные данные (для поворотных)', c => !(M(c) && M(c).ptz) || !!(c.secret && c.secret.ptz)],
   ['Фактический азимут и угол обзора', c => c.factAz != null && c.factFov != null], ['Описание', c => !!(c.descr && c.descr.trim())],
   ['Техобслуживание', c => supportOf(c).name !== '—'],
-  ['Данные паспорта СВН (серийный номер, прошивка, место размещения, высота для внешних)', c => !!(c.pass && c.pass.serial && c.pass.fw && c.pass.placeDescr && (!isOutdoor(c) || c.pass.height))],
 ];
 const stage2Missing = c => STAGE2.filter(r => !r[1](c)).map(r => r[0]);
 function readiness(c) {
@@ -1096,16 +1095,14 @@ const API = {
     const ptz = !!modelById(f.model).ptz;
     if (!f.installDate) bad('VALIDATION', 'Укажите дату установки');
     const pr = parseRtsp(f.rtsp);
-    if (pr && !f.ip) f.ip = pr.host;
-    if (!/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.test(f.ip) || f.ip.split('.').some(x => +x > 255)) bad('VALIDATION', pr ? 'Укажите IP-адрес камеры в «Дополнительно»: в RTSP-ссылке не IP-адрес' : 'IP-адрес камеры указан неверно');
-    if (!pr) bad('VALIDATION', 'RTSP URL указан неверно. Пример: rtsp://admin:пароль@10.52.84.41:555/cam/realmonitor?channel=1&subtype=0');
+    if (!pr) bad('VALIDATION', 'RTSP-ссылка указана неверно — она начинается с rtsp:// (прямые косые черты). Пример: rtsp://admin:пароль@10.52.84.41:554/cam/realmonitor?channel=1&subtype=0');
+    if (!f.ip) f.ip = pr.host;
+    if (!/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.test(f.ip) || f.ip.split('.').some(x => +x > 255)) bad('VALIDATION', f.ip === pr.host ? `В RTSP-ссылке адрес «${pr.host}» — это не IP-адрес. Укажите IP камеры в «Дополнительно»` : 'IP-адрес камеры в «Дополнительно» указан неверно');
     const keepSecret = pr.pass === '••••';
     if (keepSecret && !(c.secret && c.secret.given)) bad('VALIDATION', 'Введите RTSP-ссылку полностью, с паролем');
     if (pr.user && pr.pass && !keepSecret) { f.user = pr.user; f.password = pr.pass; }
     if (!(f.factAz >= 0 && f.factAz <= 359) || !(f.factFov >= 10 && f.factFov <= 360)) bad('VALIDATION', 'Проверьте фактический азимут (0–359°) и угол обзора');
-    if (!f.pass || !f.pass.serial || !f.pass.fw || !f.pass.placeDescr) bad('VALIDATION', 'Для паспорта СВН укажите серийный номер, версию прошивки и место размещения');
-    if (/^Внешняя/.test(f.esvType) && !(f.pass.height > 0)) bad('VALIDATION', 'Для внешней камеры укажите высоту установки');
-    if (!f.descr.trim()) bad('VALIDATION', 'Добавьте краткое описание — что видит камера');
+    if (!f.descr.trim()) bad('VALIDATION', 'Добавьте описание: где размещена камера и что она видит');
     if (!ESV_TYPES.includes(f.esvType)) bad('VALIDATION', 'Выберите тип камеры по классификатору ЕСВ');
     if (!f.support) bad('VALIDATION', 'Укажите, кто обслуживает камеру: своими силами или по контракту');
     if (f.support !== 'self' && f.support !== '__new' && !(contractorById(f.support) && contractorById(f.support).org === c.org)) bad('VALIDATION', 'Контракт не относится к вашей организации');
@@ -1222,6 +1219,11 @@ const API = {
     ];
     r.checks = checks; r.ok = checks.every(x => x[1]);
     c.streamCheck = r;
+    c.pass = c.pass || {};
+    if (!c.pass.serial || !c.pass.fw) {
+      c.pass.serial = c.pass.serial || 'SN' + (2024071800 + nOf(c) * 37); c.pass.fw = c.pass.fw || 'V5.7.17 build 240606'; c.pass.onvif = true;
+      r.onvif = true; hist(c, `По ONVIF получены серийный номер ${c.pass.serial} и прошивка ${c.pass.fw}`);
+    }
     hist(c, `Проверка потока (esvcheck): ${r.ok ? 'пройдена' : 'не пройдена'} — ${res.join('×')}, ${r.fps} к/с, ${codec}, ${bitrate} Мбит/с`);
     audit(`Проверка потока через esvcheck: ${r.ok ? 'пройдена' : 'не пройдена'} (логин и пароль подставил сервер)`, c.num);
     return r;
@@ -1826,6 +1828,11 @@ function pageRegistry() {
     <p class="demo-note">В таблице — основные поля; карточка камеры (клик по строке) показывает остальные: описание, техобслуживание, сверку ракурса. Характеристики модели (кодеки, ONVIF, климатическое исполнение) хранятся в справочнике моделей, а не в каждой карточке. Пароли в реестре не показываются и не выгружаются — только отметка, что они переданы.</p>`;
 }
 const csvq = v => { const t = String(v ?? ''); return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+function saveFileAs(filename, data, type, okMsg) {
+  if (DL) { DL.save({filename, data}).then(() => toast(okMsg)).catch(err => { if (err && err.code !== 'declined') toast('Не удалось сохранить файл: ' + (err.message || err.code), 'bad'); }); return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], {type: type + ';charset=utf-8'})); a.download = filename;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); toast(okMsg);
+}
 function saveFile(filename, data, okMsg) {
   if (DL) { DL.save({filename, data}).then(() => toast(okMsg)).catch(err => { if (err && err.code !== 'declined') toast('Не удалось сохранить файл: ' + (err.message || err.code), 'bad'); }); return; }
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], {type: 'text/csv;charset=utf-8'})); a.download = filename;
@@ -2156,8 +2163,8 @@ function pageHelp() {
     <table><thead><tr><th>Этап</th><th>Кто отвечает</th><th>Срок</th><th>Что происходит и зачем</th></tr></thead><tbody>
       <tr><td><b>1. Заявление</b></td><td>Владелец</td><td>—</td><td>Точка на карте, сектор обзора, назначение, эталонный кадр. <span class="why">Этого хватает ДРБ, чтобы решить, нужна ли камера здесь. Технические данные на этом этапе не нужны: камеры ещё нет.</span></td></tr>
       <tr><td><b>2. Решение ДРБ</b></td><td>ДРБ</td><td>10 раб. дней</td><td>Решение по каждой камере отдельно: одобрить, вернуть на доработку или отказать с причиной из справочника. Для назначения «общественная безопасность» сначала нужны ответы силового блока. <span class="why">Одно заявление — до 50 камер, но одна спорная камера не задерживает остальные.</span></td></tr>
-      <tr><td><b>3. Монтаж и данные для ЕСВ</b></td><td>Владелец</td><td>согласование действует 6 мес.</td><td>После монтажа: модель, IP-адрес, RTSP-ссылка с логином и паролем, фактический азимут, данные паспорта СВН, техобслуживание (своими силами или по контракту). Канал до узла РМТКС указывают «Ресурсы Ямала». <span class="why">Пароль хранится в зашифрованном виде и в интерфейсе не показывается.</span></td></tr>
-      <tr><td><b>4. Соглашение с РЯ</b></td><td>«Ресурсы Ямала»</td><td rowspan="2">5 раб. дней на оба этапа</td><td>Камеру добавляют в перечень к соглашению организации. Паспорт СВН (приложение № 1) формирует платформа из карточки. <span class="why">Так бумаги не расходятся с реестром.</span></td></tr>
+      <tr><td><b>3. Монтаж и данные для ЕСВ</b></td><td>Владелец</td><td>согласование действует 6 мес.</td><td>После монтажа: модель, RTSP-ссылка с логином и паролем (IP берётся из неё), фактический азимут и угол, описание, техобслуживание. Серийный номер и прошивку платформа получит по ONVIF (своими силами или по контракту). Канал до узла РМТКС указывают «Ресурсы Ямала». <span class="why">Пароль хранится в зашифрованном виде и в интерфейсе не показывается.</span></td></tr>
+      <tr><td><b>4. Соглашение с РЯ</b></td><td>«Ресурсы Ямала»</td><td rowspan="2">5 раб. дней на оба этапа</td><td>Камеру добавляют в перечень к соглашению организации. Паспорт СВН (приложение № 1) — это те же 10 полей, что уходят в ЕСВ; платформа формирует его из карточки. <span class="why">Так бумаги не расходятся с реестром.</span></td></tr>
       <tr><td><b>5. Проверка и добавление в ЕСВ</b></td><td>«Ресурсы Ямала»</td><td>Четыре пункта: карточка, видеопоток, канал, запись для ЕСВ. После этого кнопка «Добавить в ЕСВ» создаёт камеру в ЕСВ через API. <span class="why">Никто не переносит данные вручную из таблиц.</span></td></tr>
       <tr><td><b>6. В ЕСВ</b></td><td>—</td><td>—</td><td>Камера рабочая. Неисправность → заявка исполнителю техобслуживания. Изменение или вывод → новое заявление.</td></tr>
     </tbody></table>
@@ -2334,7 +2341,7 @@ function pageControl() {
 function pageAgreements() {
   const org = ROLES.owner.org, ags = Object.entries(S.agreements).filter(([, a]) => a.org === org);
   return `<div class="callout info">Соглашение с «Ресурсами Ямала» заключается один раз на организацию; каждая камера добавляется в перечень к нему при подключении. Если соглашения нет, РЯ оформляет его при подключении первой камеры.</div>
-    ${ags.map(([k, a]) => { const cams = S.cameras.filter(c => c.agreement === k); return `<section class="card"><div class="card-h"><div><h3>${esc(a.title)}</h3><div class="faint" style="font-size:12.5px">Скан: ${esc(a.file || 'не приложен')} · перечень камер (приложение № 1) формируется из реестра</div></div><span class="muted">камер в перечне: ${cams.length}</span></div>
+    ${ags.map(([k, a]) => { const cams = S.cameras.filter(c => c.agreement === k); return `<section class="card"><div class="card-h"><div><h3>${esc(a.title)}</h3><div class="faint" style="font-size:12.5px">Скан: ${esc(a.file || 'не приложен')} · перечень камер (приложение № 1) формируется из реестра</div></div>${cams.length ? `<button class="btn sm" data-act="annexdl" data-v="${k}">Приложение № 1</button>` : ''}<span class="muted">камер в перечне: ${cams.length}</span></div>
       <div class="tbl-wrap"><table><thead><tr><th>Номер</th><th>Наименование</th><th>ID ЕСВ</th><th>Состояние</th></tr></thead><tbody>${cams.map(c => `<tr class="click" data-act="cam" data-v="${c.id}"><td class="num">${c.num}</td><td>${esc(c.name)}</td><td class="num">${c.esvId || '—'}</td><td>${dpill(c)}</td></tr>`).join('')}</tbody></table></div></section>`; }).join('') || '<section class="card"><div class="empty">Соглашений пока нет — оно будет оформлено при подключении первой камеры</div></section>'}`;
 }
 function camRows(list, btn) {
@@ -2404,6 +2411,13 @@ function modal(title, body, foot) {
 function closeModal() { $$('.modal, .m-scrim').forEach(e => e.remove()); }
 function afterChange(keepCam = true) { closeModal(); render(); if (!keepCam) closeCam(); }
 
+function rtspHint(v) {
+  if (!v.trim()) return 'IP-адрес камеры возьмём из ссылки';
+  const pr = parseRtsp(v.trim());
+  if (!pr) return '⚠ Ссылка не распознана: нужен вид rtsp://логин:пароль@адрес:порт/путь';
+  const ip = /^\d{1,3}(\.\d{1,3}){3}$/.test(pr.host);
+  return `${ip ? 'IP камеры: ' + pr.host : '⚠ В ссылке не IP-адрес — укажите IP в «Дополнительно»'} · порт ${pr.port}${pr.user ? ' · логин ' + pr.user : ' · ⚠ нет логина'}${pr.pass ? '' : ' · ⚠ нет пароля'}`;
+}
 function supportFields(c) {
   const cur = c.support || ORGS[c.org].support, list = orgContractors(c.org);
   return `<div class="fld"><span>Техобслуживание — кто устраняет неисправности</span><select id="f-support">
@@ -2423,10 +2437,9 @@ function mInstall(id) {
   const c = cam(id), p = c.passport || {}, sec = c.secret || {};
   const groups = [...new Set([`${ORGS[c.org].mask} · ${c.purpose}`, `${ORGS[c.org].mask} · Перекрёстки`, `${ORGS[c.org].mask} · Социальные объекты`, `${ORGS[c.org].mask} · Транспорт`, c.group].filter(Boolean))];
   const nextQ = S.cameras.filter(x => x.org === c.org && x.place === 'permitted' && x.id !== c.id);
-  const donors = S.cameras.filter(x => x.org === c.org && x.id !== c.id && x.passport && x.passport.model && x.pass).sort((a, b) => (b.readyAt || '').localeCompare(a.readyAt || ''));
   modal(`Данные после монтажа · ${c.num}`, `
     <div class="muted">${esc(c.name)} · ${esc(c.address)}${nextQ.length ? ` · ещё ждут данных: ${nextQ.length}` : ''}</div>
-    ${donors.length && !(c.passport && c.passport.model) ? `<label class="fld"><span>Заполнить как у другой камеры — модель, прошивка, высота, техобслуживание (IP, RTSP и серийный номер — свои)</span><select id="f-copyfrom"><option value="">— не копировать —</option>${donors.slice(0, 30).map(x => `<option value="${x.id}"${UI.copyFrom === x.id ? ' selected' : ''}>${x.num} · ${esc(x.name)}${M(x) ? ' · ' + esc(M(x).name) : ''}</option>`).join('')}</select></label>` : ''}
+    ${UI.copyFrom && cam(UI.copyFrom) && !(c.passport && c.passport.model) ? `<div class="faint" style="font-size:12px">Модель и техобслуживание подставлены как у ${cam(UI.copyFrom).num} — проверьте.</div>` : ''}
     <div class="callout info" style="font-size:12.5px">Камера смонтирована — внесите данные, без которых её нельзя подключить к ЕСВ. Координаты и адрес уже есть из заявления, канал связи укажут «Ресурсы Ямала».</div>
     <div class="grid2"><label class="fld"><span>Модель (справочник)</span><select id="f-model"><option value="">— выберите —</option>${[...Object.entries(MODELS), ...Object.entries(S.customModels).filter(([, m]) => m.status === 'approved' || m.org === c.org)].map(([k, m]) => `<option value="${k}"${p.model === k ? ' selected' : ''}>${esc(m.name)}${m.ptz ? ' — PTZ' : ''}${m.custom && m.status === 'pending' ? ' (на проверке)' : ''}</option>`).join('')}<option value="__new">+ Другая модель — нет в справочнике</option></select></label>
     <label class="fld"><span>Дата установки</span><input type="date" id="f-date" value="${p.installDate || dOnly(S.clock)}"></label></div>
@@ -2437,24 +2450,17 @@ function mInstall(id) {
       <label class="fld"><span>Спецификация производителя (PDF или фото)</span><input type="file" id="f-nspec" accept="application/pdf,image/*"></label>
       <div class="faint" style="font-size:12px">Модель уйдёт на проверку в «Ресурсы Ямала»: РЯ сверит спецификацию с требованиями ЕСВ и внесёт модель в справочник. До этого камеру нельзя включить в соглашение.</div>
     </div>
-    <label class="fld"><span>RTSP URL — полностью, с логином и паролем${c.rtsp ? ' (пароль скрыт; чтобы сменить — введите ссылку заново)' : ''}</span><input type="text" id="f-rtsp" value="${esc(c.rtsp || '')}" autocomplete="off" placeholder="rtsp://admin:пароль@10.52.84.41:555/cam/realmonitor?channel=1&subtype=0"></label>
-    <div class="grid3"><label class="fld"><span>Серийный номер</span><input type="text" id="f-serial" value="${esc((c.pass && c.pass.serial) || '')}"></label>
-    <label class="fld"><span>Фактический азимут, °</span><input type="number" id="f-az" value="${c.factAz ?? c.az}" min="0" max="359"></label>
+    <label class="fld"><span>RTSP URL — полностью, с логином и паролем${c.rtsp ? ' (пароль скрыт; чтобы сменить — введите ссылку заново)' : ''}</span><input type="text" id="f-rtsp" value="${esc(c.rtsp || '')}" autocomplete="off" placeholder="rtsp://admin:пароль@10.52.84.41:554/cam/realmonitor?channel=1&subtype=0"><small id="rtsp-hint" class="faint" style="font-size:12px">${rtspHint(c.rtsp || '')}</small></label>
+    <div class="grid2"><label class="fld"><span>Фактический азимут, °</span><input type="number" id="f-az" value="${c.factAz ?? c.az}" min="0" max="359"></label>
     <label class="fld"><span>Фактический угол обзора, °</span><input type="number" id="f-fov" value="${c.factFov ?? c.fov}" min="10" max="360"></label></div>
-    <label class="fld"><span>Описание — что видит камера</span><input type="text" id="f-descr" value="${esc(c.descr || c.name || '')}" placeholder="Что видит камера: перекрёсток, вход, площадка"></label>
+    <label class="fld"><span>Описание — где размещена камера и что она видит</span><input type="text" id="f-descr" value="${esc(c.descr || [mountText(c) !== '—' ? mountText(c).toLowerCase() : '', c.name].filter(Boolean).join(', '))}" placeholder="Например: опора освещения у дома 40, обзор двора и детской площадки"></label>
     <div class="fld"><span>Фото после монтажа — что реально видит камера (рекомендуется)</span><div class="row"><label class="btn sm" style="cursor:pointer">Загрузить фото<input type="file" id="f-fact" accept="image/*" hidden></label><button class="btn sm" type="button" data-act="factgen">Пример кадра</button><span class="faint" id="factstate" style="font-size:12px">${c.factFrame ? 'приложено' : 'не приложено'}</span></div></div>
-    <details class="passbox"${c.pass && c.pass.serial ? '' : ' open'}><summary><b>Для паспорта СВН</b> — приложение № 1 к соглашению с РЯ</summary>
-      <div class="grid2"><label class="fld"><span>Версия прошивки</span><input type="text" id="f-fw" value="${esc((c.pass && c.pass.fw) || '')}" placeholder="V5.7.17 build 240606"></label>
-      <label class="fld"><span>Высота установки, м (для внешних)</span><input type="number" step="0.1" id="f-height" value="${(c.pass && c.pass.height) ?? ''}"></label></div>
-      <div class="grid2"><label class="fld" style="grid-column:1/-1"><span>Место размещения относительно объектов</span><input type="text" id="f-place" value="${esc((c.pass && c.pass.placeDescr) || (c.mount ? mountText(c) : ''))}" placeholder="Например: входная зона и лестница на второй этаж"></label></div>
-      <div class="grid2" id="ptzpass"${M(c) && M(c).ptz ? '' : ' hidden'}><label class="fld"><span>Погрешность азимута (для поворотных), °</span><input type="number" id="f-azerr" value="${(c.pass && c.pass.azErr) ?? 5}"></label>
-      <label class="fld" style="align-self:end"><span></span><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="f-telem"${c.pass && c.pass.telem ? ' checked' : ''}> Трансляция телеметрии в ЕСВ</label></label></div>
-      <div class="faint" style="font-size:12px">Карту с сектором обзора и фото зоны обзора платформа подставит в паспорт сама — из точки на карте и фото после монтажа.</div>
-    </details>
     ${supportFields(c)}
     <details class="passbox"><summary><b>Дополнительно</b> — уже заполнено из заявления, менять обычно не нужно</summary>
       <div class="grid2"><label class="fld"><span>Тип камеры (классификатор ЕСВ)</span><select id="f-etype">${ESV_TYPES.map(t => `<option${(c.esvType || (M(c) && M(c).ptz ? 'Внешняя поворотная' : 'Внешняя')) === t ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
       <label class="fld"><span>IP-адрес камеры — если отличается от адреса в RTSP-ссылке</span><input type="text" id="f-ip" value="${esc(c.ip || '')}" placeholder="по умолчанию — из RTSP-ссылки"></label></div>
+      <div class="grid2"><label class="fld"><span>Серийный номер — необязательно</span><input type="text" id="f-serial" value="${esc((c.pass && c.pass.serial) || '')}" placeholder="подтянется по ONVIF"></label>
+      <label class="fld"><span>Версия прошивки — необязательно</span><input type="text" id="f-fw" value="${esc((c.pass && c.pass.fw) || '')}" placeholder="подтянется по ONVIF"></label></div>
       <label class="fld"><span>Группа камер в ЕСВ</span><select id="f-group">${groups.map(g => `<option${(c.group || groups[0]) === g ? ' selected' : ''}>${esc(g)}</option>`).join('')}</select></label>
       <label class="fld"><span>Дополнительная информация</span><textarea id="f-info">${esc(c.info || '')}</textarea></label>
     </details>
@@ -2462,7 +2468,7 @@ function mInstall(id) {
     <label class="fld"><span>Пароль для управления поворотом (PTZ)</span><input type="password" id="f-ppass" autocomplete="new-password"></label></div>
     <div class="faint" style="font-size:12px">После сохранения пароль из ссылки шифруется и скрывается: в карточке ссылка показывается как rtsp://логин:••••@… Принимается любая RTSP-ссылка; если пароль похож на заводской, система только предупредит. Глубина архива единая для всех камер ЕСВ (${ESV_ARCHIVE_DAYS} суток) и не вводится.</div>`,
     `<button class="btn" data-act="mclose">Отмена</button>${nextQ.length ? `<button class="btn" data-act="m-install" data-v="${c.id}" data-next="1">Сохранить и к следующей (${nextQ.length})</button>` : ''}<button class="btn pri" data-act="m-install" data-v="${c.id}">Сохранить</button>`);
-  if (UI.copyFrom && $('#f-copyfrom') && $('#f-copyfrom').value) copyInstallFrom(UI.copyFrom);
+  if (UI.copyFrom && cam(UI.copyFrom) && !(c.passport && c.passport.model)) copyInstallFrom(UI.copyFrom);
 }
 /* позиции без замечаний: нет перекрытий, силовой блок не нужен или все ответы положительные */
 function cleanIdx(a) {
@@ -2471,7 +2477,7 @@ function cleanIdx(a) {
 function copyInstallFrom(id) {
   const x = cam(id); if (!x) return;
   const set = (sel, v) => { const e = $(sel); if (e && v != null && v !== '') { e.value = v; e.dispatchEvent(new Event('change', {bubbles: true})); } };
-  set('#f-model', x.passport && x.passport.model); set('#f-fw', x.pass && x.pass.fw); set('#f-height', x.pass && x.pass.height);
+  set('#f-model', x.passport && x.passport.model);
   set('#f-support', x.support || ORGS[x.org].support);
   if (x.passport && x.passport.installDate) set('#f-date', x.passport.installDate);
 }
@@ -2567,36 +2573,35 @@ function streamBox(r) {
   return `<div class="callout ${r.ok ? 'ok' : 'bad'}"><b>${r.ok ? 'Поток соответствует требованиям ЕСВ' : 'Поток не соответствует требованиям'}</b> <span class="faint">· ${fmtDT(r.at)}</span>
     <div class="checks" style="margin-top:6px">${r.checks.map(x => `<div class="chk ${x[1] ? 'ok' : 'bad'}"><span class="ic">${x[1] ? '✓' : '✕'}</span><span>${esc(x[0])} <span class="faint">· ${esc(x[2])}</span></span></div>`).join('')}</div></div>`;
 }
-function passRows(c) {
-  const [lat, lng] = toLatLon(c.x, c.y), m = M(c) || {}, ps = c.pass || {};
-  return [
-    ['Идентификационные данные', [['Идентификатор СВН в ВСВН', c.num], ['Порядковый номер в базе эталонных изображений ЕСВ', c.esvId ? 'присвоит ЕСВ' : '—']]],
-    ['Место размещения', [['Город / район', districtOf(c.x, c.y)], ['Адрес установки', c.address], ['Координаты WGS-84 (долгота, широта)', `${lng.toFixed(6)}, ${lat.toFixed(6)}`],
-      [m.ptz ? 'Погрешность азимута (для поворотных), °' : 'Азимут, °', m.ptz ? (ps.azErr ?? '—') : (c.factAz ?? c.az)], ['Высота размещения, м', isOutdoor(c) ? (ps.height ?? null) : 'не требуется'], ['Описание места размещения', ps.placeDescr || null], ['Тип размещения', isOutdoor(c) ? 'внешняя' : 'внутренняя']]],
-    ['Сцена обзора', [['Описание сцены обзора', c.descr || null]]],
-    ['Данные о камере', [['Модель', m.custom ? m.vendor + ' ' + m.model : (m.name || '').replace(' (демо)', '') || null], ['Серийный номер', ps.serial || null], ['Версия прошивки', ps.fw || null], ['PTZ-управление в ЕСВ', m.ptz ? 'да' : 'нет'], ['Трансляция телеметрии в ЕСВ', ps.telem ? 'да' : 'нет']]],
-  ];
-}
+/* паспорт СВН = приложение № 1 к соглашению = данные для добавления в ЕСВ: один набор полей (по предложению РЯ) */
+const PASS_COLS = [
+  ['Номер в реестре', c => c.num],
+  ['Адрес установки', c => c.address],
+  ['Координаты (долгота, широта)', c => { const [lat, lng] = toLatLon(c.x, c.y); return `${lng.toFixed(6)}, ${lat.toFixed(6)}`; }],
+  ['Азимут и угол обзора, °', c => `${c.factAz ?? c.az} / ${c.factFov ?? c.fov}`],
+  ['Тип размещения (классификатор ЕСВ)', c => c.esvType || null],
+  ['Модель', c => { const m = M(c) || {}; return m.custom ? m.vendor + ' ' + m.model : (m.name || '').replace(' (демо)', '') || null; }],
+  ['Серийный номер', c => (c.pass && c.pass.serial) ? c.pass.serial + (c.pass.onvif ? ' (ONVIF)' : '') : null],
+  ['Версия прошивки', c => (c.pass && c.pass.fw) || null],
+  ['PTZ-управление в ЕСВ', c => M(c) ? (M(c).ptz ? 'да' : 'нет') : null],
+  ['Описание (размещение, сцена)', c => c.descr || null],
+];
+function passRows(c) { return PASS_COLS.map(([k, f]) => [k, f(c)]); }
 function mPassDoc(id) {
-  const c = cam(id), rows = passRows(c), missing = rows.flatMap(g => g[1]).filter(r => r[1] == null || r[1] === '').length;
-  const svg = `<svg viewBox="${c.x - 90} ${c.y - 60} 180 120" class="passmap" role="img" aria-label="Фрагмент карты с сектором обзора">${tilesSVG({x: c.x - 90, y: c.y - 60, w: 180, h: 120}, 360, 240)}<path class="sec c-work" d="${sectorPath(c.x, c.y, c.factAz ?? c.az, c.factFov ?? c.fov, c.range)}"/><circle class="pt c-work" cx="${c.x}" cy="${c.y}" r="4"/></svg>`;
+  const c = cam(id), rows = passRows(c), missing = rows.filter(r => r[1] == null || r[1] === '').map(r => r[0]);
   modal(`Паспорт СВН · ${c.num}`, `
-    <div class="muted" style="font-size:12.5px">Приложение № 1 к соглашению «${c.agreement ? esc(S.agreements[c.agreement].title) : 'соглашение ещё не оформлено'}» — реестр паспортов средств видеонаблюдения. Сформирован платформой из карточки камеры, вручную не заполняется.</div>
-    ${missing ? `<div class="callout warn">Не заполнено полей: ${missing}. Владелец дополняет их в «Данных для ЕСВ».</div>` : '<div class="callout ok">Все поля паспорта заполнены.</div>'}
-    ${rows.map(([g, rs]) => `<div><div class="sec-t" style="margin:4px 0 6px">${g}</div><dl class="kv esvkv">${rs.map(([k, v]) => `<dt>${esc(k)}</dt><dd${v == null || v === '' ? ' style="color:var(--bad)"' : ''}>${v == null || v === '' ? 'не заполнено' : esc(v)}</dd>`).join('')}</dl></div>`).join('')}
-    <div><div class="sec-t" style="margin:4px 0 6px">Фотоматериалы</div><div class="frames" style="grid-template-columns:1fr 1fr 1fr">
-      <figure class="frame">${svg}<figcaption>Фрагмент карты с сектором — автоматически</figcaption></figure>
-      <figure class="frame"><img alt="Зона обзора" src="${c.factFrame ? (c.factFrame === 'gen' ? frameOf(c) : c.factFrame) : frameOf(c)}"><figcaption>Зона обзора — ${c.factFrame ? 'фото после монтажа' : 'эталонный кадр'}</figcaption></figure>
-      <figure class="frame"><div style="aspect-ratio:16/10;display:grid;place-items:center;color:var(--faint);font-size:12px;text-align:center;padding:6px">Фото места установки и домового знака — по желанию</div><figcaption>Место установки</figcaption></figure>
-    </div></div>
-    <div class="faint" style="font-size:12px">IP-адрес, RTSP, логин и пароль в паспорт не входят — они хранятся в зашифрованном виде отдельно от документа.</div>`,
-    `<button class="btn" data-act="mclose">Закрыть</button>${DL ? `<button class="btn pri" data-act="passdl" data-v="${id}">Скачать для печати</button>` : ''}`);
+    <div class="muted" style="font-size:12.5px">Строка приложения № 1 к ${c.agreement ? esc(S.agreements[c.agreement].title.replace(/^Соглашение/, 'Соглашению')) : 'соглашению (ещё не оформлено)'}. Это те же данные, что уходят в ЕСВ: платформа собирает их из карточки, вручную ничего не заполняется.</div>
+    ${missing.length ? `<div class="callout warn">Не заполнено: ${esc(missing.join(', '))}. ${missing.every(m => /Серийный|прошивки/.test(m)) ? 'Подтянется по ONVIF при проверке потока.' : 'Владелец дополняет в «Данных после монтажа».'}</div>` : '<div class="callout ok">Паспорт заполнен.</div>'}
+    <dl class="kv esvkv">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd${v == null || v === '' ? ' style="color:var(--bad)"' : ''}>${v == null || v === '' ? 'не заполнено' : esc(v)}</dd>`).join('')}</dl>
+    <div class="faint" style="font-size:12px">Карта с сектором и фото не нужны: сектор строится по координатам, азимуту и углу, эталонный кадр хранится в карточке. IP-адрес, RTSP, логин и пароль в паспорт не входят.</div>`,
+    `<button class="btn" data-act="mclose">Закрыть</button><button class="btn pri" data-act="passdl" data-v="${id}">Скачать для печати</button>`);
 }
-function passDocHTML(c) {
-  const rows = passRows(c);
-  return `<!doctype html><html lang="ru"><meta charset="utf-8"><title>Паспорт СВН ${c.num}</title><style>body{font:14px Times New Roman,serif;margin:2cm}table{border-collapse:collapse;width:100%}td,th{border:1px solid #000;padding:4px 6px;vertical-align:top}th{background:#eee;text-align:left}h1{font-size:16px;text-align:center}</style>
-  <p style="text-align:right">Приложение № 1<br>к ${c.agreement ? S.agreements[c.agreement].title : 'Соглашению о взаимодействии'}</p><h1>РЕЕСТР ПАСПОРТОВ СРЕДСТВ ВИДЕОНАБЛЮДЕНИЯ</h1>
-  <p>Поставщик информации: ${ORGS[c.org].name}</p><table>${rows.map(([g, rs]) => `<tr><th colspan="2">${g}</th></tr>${rs.map(([k, v]) => `<tr><td>${k}</td><td>${v == null || v === '' ? '' : v}</td></tr>`).join('')}`).join('')}</table>
+function passDocHTML(c) { return annexHTML(c.agreement, [c]); }
+function annexHTML(agId, cams) {
+  const ag = agId && S.agreements[agId], org = cams[0] ? ORGS[cams[0].org].name : '';
+  return `<!doctype html><html lang="ru"><meta charset="utf-8"><title>Приложение № 1 — реестр паспортов СВН</title><style>body{font:13px Times New Roman,serif;margin:1.5cm}table{border-collapse:collapse;width:100%}td,th{border:1px solid #000;padding:4px 5px;vertical-align:top}th{background:#eee;text-align:left}h1{font-size:15px;text-align:center}</style>
+  <p style="text-align:right">Приложение № 1<br>к ${ag ? esc(ag.title.replace(/^Соглашение/, 'Соглашению')) : 'Соглашению о передаче информации в ЕСВ'}</p><h1>РЕЕСТР ПАСПОРТОВ СРЕДСТВ ВИДЕОНАБЛЮДЕНИЯ</h1><p>Поставщик информации: ${esc(org)}</p>
+  <table><tr><th>№</th>${PASS_COLS.map(([k]) => `<th>${esc(k)}</th>`).join('')}</tr>${cams.map((c, i) => `<tr><td>${i + 1}</td>${PASS_COLS.map(([, f]) => `<td>${esc(f(c) ?? '')}</td>`).join('')}</tr>`).join('')}</table>
   <p>Сформировано в платформе «Единый реестр камер» ${fmtD(S.clock)}.</p></html>`;
 }
 function mWithdraw(appId, idx) {
@@ -2672,7 +2677,7 @@ document.addEventListener('click', e => {
       break; }
     case 'jtab': UI.journalTab = v; render(); break;
     case 'rework': closeCam(); startRework(v); break;
-    case 'install': mInstall(v); break;
+    case 'install': UI.copyFrom = null; mInstall(v); break;
     case 'retire': mRetire(v); break;
     case 'change': mChange(v); break;
     case 'withdraw': mWithdraw(v, el.dataset.i != null ? +el.dataset.i : null); break;
@@ -2714,7 +2719,8 @@ document.addEventListener('click', e => {
     case 'wizsubmit': { UI.wizUndo = null; const re = !!S.draft.appId; const a = call('POST', re ? `/api/v1/applications/${S.draft.appId}/resubmit` : '/api/v1/applications', () => API.submitDraft()); if (a) { toast(re ? `Заявление ${a.id} подано повторно` : `Заявление ${a.id} подано: ${a.items.length} кам.`); UI.appId = a.id; UI.page = 'app'; delete VIEWS.wiz; render(); } break; }
     case 'mclose': closeModal(); window._factFrame = null; break;
     case 'passdoc': mPassDoc(v); break;
-    case 'passdl': { const c = cam(v); if (DL) DL.save({filename: `Паспорт_СВН_${c.num}.html`, data: passDocHTML(c)}).then(() => toast('Паспорт сохранён')).catch(err => { if (err && err.code !== 'declined') toast('Не удалось сохранить: ' + (err.message || err.code), 'bad'); }); break; }
+    case 'passdl': { const c = cam(v); saveFileAs(`Паспорт_СВН_${c.num}.html`, passDocHTML(c), 'text/html', 'Паспорт сохранён'); break; }
+    case 'annexdl': { const ag = S.agreements[v], cs = S.cameras.filter(c => c.agreement === v && derived(c) !== 'arch'); saveFileAs(`Приложение_1_${ag.title.replace(/[^0-9А-Яа-яA-Za-z]+/g, '_')}.html`, annexHTML(v, cs), 'text/html', 'Приложение № 1 сохранено'); break; }
     case 'chan': { const c = cam(v); const r = call('POST', `/api/v1/cameras/${c.num}/channel-check`, () => API.channelCheck(v, {link: {mode: $('#f-lmode').value, node: $('#f-lnode').value, operator: $('#f-lop').value.trim()}, cls: $('#f-cls').value, bw: +$('#f-bw').value, rtt: +$('#f-rtt').value, jitter: +$('#f-jit').value, loss: +$('#f-loss').value})); if (r) { UI.lastChan = {link: {...c.link}, cls: r.cls, bw: r.bw, rtt: r.rtt, jitter: r.jitter, loss: r.loss}; toast(r.ok ? 'Канал соответствует нормам' : 'Канал не соответствует нормам', r.ok ? 'ok' : 'bad'); reopenEsv(v); } break; }
     case 'esv-add': { const c = cam(v); const r = call('POST', `/api/v1/cameras/${c.num}/esv:add`, () => API.addToEsv(v, !!(UI.recOk && UI.recOk[v]))); if (r) { closeModal(); if (el.dataset.next) { const nx = ryaQueues().toConnect.find(x => !x.rework); render(); toast(`${c.num} добавлена в ЕСВ`); if (nx) { UI.recOk = {}; mEsvAdd(nx.id); } break; } toast(`${c.num} добавлена в ЕСВ, id ${r.esvId}`, 'ok', 'POST ЕСВ (NETRIS) /api/v1/cameras → 201 Created'); render(); } break; }
     case 'esv-return': { modal('Вернуть владельцу', `<label class="fld"><span>Что исправить — увидит владелец</span><textarea id="f-rwreason" placeholder="Например: RTSP-ссылка ведёт на субпоток, укажите основной поток"></textarea></label>`, `<button class="btn" data-act="mclose">Отмена</button><button class="btn warn" data-act="m-esv-return" data-v="${v}">Вернуть</button>`); break; }
@@ -2727,10 +2733,10 @@ document.addEventListener('click', e => {
     case 'm-install': {
       const c = cam(v);
       const val = id => $('#' + id).value;
-      const r = call('POST', `/api/v1/cameras/${c.num}/esv-data`, () => API.install(v, {model: val('f-model'), newModel: {vendor: val('f-nvendor').trim(), name: val('f-nname').trim(), type: val('f-ntype'), spec: !!($('#f-nspec').files && $('#f-nspec').files.length)}, esvType: val('f-etype'), factFrame: window._factFrame || null, installDate: val('f-date'), ip: val('f-ip').trim(), rtsp: val('f-rtsp').trim(), factAz: +val('f-az'), factFov: +val('f-fov'), group: val('f-group'), descr: val('f-descr'), info: val('f-info'), pass: {serial: val('f-serial').trim(), fw: val('f-fw').trim(), height: val('f-height') === '' ? null : +val('f-height'), placeDescr: val('f-place').trim(), azErr: $('#f-azerr') ? +val('f-azerr') : null, telem: !!($('#f-telem') && $('#f-telem').checked)}, support: val('f-support'), newSupport: {name: val('f-sname').trim(), contact: val('f-scontact').trim(), num: val('f-scnum').trim(), date: val('f-scdate')}, user: '', password: '', ptzUser: val('f-puser'), ptzPassword: val('f-ppass')}));
+      const r = call('POST', `/api/v1/cameras/${c.num}/esv-data`, () => API.install(v, {model: val('f-model'), newModel: {vendor: val('f-nvendor').trim(), name: val('f-nname').trim(), type: val('f-ntype'), spec: !!($('#f-nspec').files && $('#f-nspec').files.length)}, esvType: val('f-etype'), factFrame: window._factFrame || null, installDate: val('f-date'), ip: val('f-ip').trim(), rtsp: val('f-rtsp').trim(), factAz: +val('f-az'), factFov: +val('f-fov'), group: val('f-group'), descr: val('f-descr'), info: val('f-info'), pass: {serial: val('f-serial').trim(), fw: val('f-fw').trim()}, support: val('f-support'), newSupport: {name: val('f-sname').trim(), contact: val('f-scontact').trim(), num: val('f-scnum').trim(), date: val('f-scdate')}, user: '', password: '', ptzUser: val('f-puser'), ptzPassword: val('f-ppass')}));
       window._factFrame = null;
       if (r && el.dataset.next) { UI.copyFrom = r.ready ? c.id : UI.copyFrom; const nx = S.cameras.filter(x => x.org === c.org && x.place === 'permitted' && x.id !== c.id).sort((a, b) => (a.permitUntil || '9').localeCompare(b.permitUntil || '9'))[0]; toast(r.ready ? `${c.num}: данные приняты` : `${c.num}: сохранено, не хватает: ${r.missing.join(', ')}`, r.ready ? 'ok' : 'bad'); closeModal(); render(); if (nx) mInstall(nx.id); break; }
-      if (r) { UI.copyFrom = r.ready ? c.id : UI.copyFrom; toast(r.ready ? `${c.num}: данные для ЕСВ приняты — камера передана РЯ на подключение` : r.pendingModel ? `${c.num}: данные сохранены, новая модель отправлена на проверку в РЯ` : `${c.num}: ${r.accepted ? 'не хватает данных: ' + r.missing.join(', ') : 'модель не прошла проверку'}`, r.ready || r.pendingModel ? 'ok' : 'bad'); afterChange(); }
+      if (r) { UI.copyFrom = null; toast(r.ready ? `${c.num}: данные для ЕСВ приняты — камера передана РЯ на подключение` : r.pendingModel ? `${c.num}: данные сохранены, новая модель отправлена на проверку в РЯ` : `${c.num}: ${r.accepted ? 'не хватает данных: ' + r.missing.join(', ') : 'модель не прошла проверку'}`, r.ready || r.pendingModel ? 'ok' : 'bad'); afterChange(); }
       break; }
     case 'm-decide': {
       const a = appById(UI.appId), c = cam(a.items[+v].camId);
@@ -2755,6 +2761,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('input', e => {
   const t = e.target;
+  if (t.id === 'f-rtsp') { const h = $('#rtsp-hint'); if (h) h.textContent = rtspHint(t.value); return; }
   if (t.id === 'regSearch') { UI.regSearch = t.value; const pos = t.selectionStart; render(); const s = $('#regSearch'); s.focus(); s.setSelectionRange(pos, pos); return; }
   if (t.dataset.wiz && S.draft) {
     const it = S.draft.items[UI.wizSel]; const k = t.dataset.wiz;
@@ -2772,7 +2779,6 @@ document.addEventListener('change', e => {
   if (t.id === 'f-lmode') { const b = $('#lopbox'); if (b) b.hidden = t.value !== 'vpn'; return; }
   if (t.id === 'f-ownerorg') { S.ownerOrg = t.value; setOwnerOrg(t.value); UI.page = 'home'; UI.camId = null; $('#layer').innerHTML = ''; for (const k in VIEWS) delete VIEWS[k]; save(); render(); return; }
   if (t.id === 'f-cfrom' || t.id === 'f-cto') { if (t.value) { if (t.id === 'f-cfrom') UI.connFrom = t.value; else UI.connTo = t.value; render(); } return; }
-  if (t.id === 'f-copyfrom') { UI.copyFrom = t.value || null; if (t.value) copyInstallFrom(t.value); return; }
   if (t.id === 'f-support') { const b = $('#newsup'); if (b) b.hidden = t.value !== '__new'; return; }
   if (t.id === 'f-ag') { const b = $('#newag'); if (b) b.hidden = t.value !== '__new'; return; }
   if (t.id === 'f-fact' && t.files && t.files[0]) {
