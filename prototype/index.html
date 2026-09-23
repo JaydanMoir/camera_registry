@@ -259,6 +259,7 @@ figure{margin:0}
 .wiz>*,.grid2>*,.grid3>*{min-width:0}
 .wiz .card-b{grid-template-columns:minmax(0,1fr)}
 .wiz .card-b>*{min-width:0}
+.wiz .btn,.modal .btn{white-space:normal;text-align:left;max-width:100%}
 .fld select,.fld input{max-width:100%;min-width:0}
 .wiz .map{height:max(460px,calc(100vh - 120px))}
 .items{display:flex;gap:6px;flex-wrap:wrap}
@@ -400,7 +401,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const TZ = 'Asia/Yekaterinburg';
 const fmtD = iso => iso ? new Date(iso).toLocaleDateString('ru-RU', {timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric'}) : '—';
 const fmtDT = iso => iso ? new Date(iso).toLocaleString('ru-RU', {timeZone: TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) : '—';
-const STORE_KEY = 'erk-prototype-v11';
+const STORE_KEY = 'erk-prototype-v12';
 
 /* ---------- справочники ---------- */
 const ORGS = {
@@ -418,7 +419,7 @@ const ROLES = {
   rya:   {title: '«Ресурсы Ямала»', sub: 'Оператор ЕСВ', actor: 'Оператор РЯ'},
 };
 const CLS = {overview: 'Обзорная', analytics: 'Аналитическая', ident: 'Идентификационная'};
-const PURPOSES = ['Общественная безопасность', 'Безопасность дорожного движения', 'Благоустройство', 'Образование', 'Транспорт'];
+const PURPOSES = ['Общественная безопасность', 'Безопасность дорожного движения', 'Благоустройство', 'Транспорт'];
 const AIS = ['Без ИИ (обзорная)', 'Лицо', 'ГРЗ', 'Силуэты людей и животных'];
 const AI_TASK = {'Без ИИ (обзорная)': ['Обзор территории', 'overview'], 'Лицо': ['Распознавание лиц', 'ident'], 'ГРЗ': ['Распознавание номеров (ГРЗ)', 'analytics'], 'Силуэты людей и животных': ['Силуэты людей и животных', 'analytics']};
 /* общие параметры позиций заявления: новая точка берёт их у предыдущей, их можно применить ко всем */
@@ -708,7 +709,7 @@ const KIND = {place: 'Размещение', change: 'Изменение', retir
 /* основание установки — перечень из проекта регламента ДРБ (п. 2.1) */
 const BASES = ['Антитеррористическая защищённость объекта', 'Ходатайство правоохранительных органов', 'Ходатайство спасательных служб', 'Подключение юридического лица', 'Место массового пребывания людей', 'Место пребывания несовершеннолетних', 'Место повышенной аварийности', 'Иное'];
 const MOUNTS = ['Опора освещения', 'Стена здания', 'Крыша здания', 'Внутри помещения', 'Другое'];
-const BASIS_BY_PURPOSE = {'Общественная безопасность': 'Место массового пребывания людей', 'Образование': 'Место пребывания несовершеннолетних', 'Безопасность дорожного движения': 'Место повышенной аварийности', 'Транспорт': 'Антитеррористическая защищённость объекта'};
+const BASIS_BY_PURPOSE = {'Общественная безопасность': 'Место массового пребывания людей', 'Безопасность дорожного движения': 'Место повышенной аварийности', 'Транспорт': 'Антитеррористическая защищённость объекта'};
 const basisText = c => c.basis ? c.basis + (c.basis === 'Иное' && c.basisNote ? ': ' + c.basisNote : '') : '—';
 const mountText = c => c.mount ? (c.mount === 'Другое' ? (c.mountNote || 'Другое') : c.mount) : '—';
 const CHANGE_F = {name: ['Наименование', v => v], az: ['Азимут', v => v + '°'], fov: ['Угол обзора', v => v + '°'], cls: ['Класс', v => CLS[v] || v], purpose: ['Назначение', v => v], ai: ['Целевой ИИ', v => v]};
@@ -807,7 +808,7 @@ function seed() {
   const mk = (n, org, x, y, az, fov, range, cls, ai, purpose, place, esv, name, extra = {}) => {
     const id = 'c' + n;
     const c = {id, num: 'NOY-' + String(n).padStart(5, '0'), org, x, y, az, fov, range, cls, ai, purpose, place, esv, name,
-      basis: BASIS_BY_PURPOSE[purpose] || 'Место массового пребывания людей', basisNote: '', basisDoc: n % 4 === 1 ? `Ходатайство_${n}.pdf` : null, mount: n % 5 === 2 ? 'Стена здания' : 'Опора освещения', mountNote: '',
+      basis: org === 'edu' ? 'Место пребывания несовершеннолетних' : BASIS_BY_PURPOSE[purpose] || 'Место массового пребывания людей', basisNote: '', basisDoc: n % 4 === 1 ? `Ходатайство_${n}.pdf` : null, mount: n % 5 === 2 ? 'Стена здания' : 'Опора освещения', mountNote: '',
       address: addressAt(x, y), fias: geoAt(x, y).fias, fullName: `${ORGS[org].mask} ${name}`, priority: null, restricted: false,
       passport: null, needsPassport: false, esvId: null, eksId: null, agreement: null, secret: null, availability: null,
       retireApproved: false, history: [], apps: [], ...extra};
@@ -834,8 +835,8 @@ function seed() {
   mk(2,'edds',566,414,225,90,80,'overview','Без ИИ (обзорная)','Общественная безопасность','installed','connected','ул. Ленина, 56, перекрёсток, С2',{eksId:'NOY-737-2'});
   mk(3,'edds',860,250,135,70,70,'analytics','Силуэты людей и животных','Общественная безопасность','installed','connected','ул. Советская, 95Б, перекрёсток');
   mk(4,'adm',300,300,120,90,60,'overview','Без ИИ (обзорная)','Благоустройство','installed','connected','пр-т Мира, 89, спортивная площадка');
-  mk(5,'edu',400,520,300,90,60,'overview','Без ИИ (обзорная)','Образование','installed','connected','пр-т Мира, 64, спортплощадка школы, С1');
-  mk(6,'edu',424,538,20,90,60,'overview','Без ИИ (обзорная)','Образование','installed','connected','ул. Ленина, 28, спортплощадка школы, С2');
+  mk(5,'edu',400,520,300,90,60,'overview','Без ИИ (обзорная)','Общественная безопасность','installed','connected','пр-т Мира, 64, спортплощадка школы, С1');
+  mk(6,'edu',424,538,20,90,60,'overview','Без ИИ (обзорная)','Общественная безопасность','installed','connected','ул. Ленина, 28, спортплощадка школы, С2');
   mk(7,'adm',700,500,200,100,70,'overview','Без ИИ (обзорная)','Благоустройство','installed','connected','ул. Городилова, 8, вход в парк');
   mk(8,'edds',1050,650,190,60,50,'ident','Лицо','Транспорт','installed','connected','Промузел Пелей, панель I, перрон, С5',{model:'ark8'});
   mk(9,'edds',1072,640,90,80,70,'overview','Без ИИ (обзорная)','Транспорт','installed','connected','Промузел Пелей, панель I, площадь');
@@ -843,10 +844,10 @@ function seed() {
   mk(11,'adm',860,600,300,80,70,'analytics','ГРЗ','Безопасность дорожного движения','installed','connected','ул. Магистральная, 91, перекрёсток',{model:'yk2'});
   mk(12,'edds',260,420,90,90,80,'overview','Без ИИ (обзорная)','Общественная безопасность','installed','connected','ул. Холмогорская, 45, перекрёсток',{imported:true, needsPassport:true, eksId:'NOY-741-1', passport:{model:null, accepted:false, issues:['Паспорт не заполнен после импорта']}});
   mk(13,'edds',260,250,180,90,70,'overview','Без ИИ (обзорная)','Общественная безопасность','installed','connected','пр-т Мира, 93Г, перекрёсток',{imported:true, needsPassport:true, eksId:'NOY-740-1', passport:{model:null, accepted:false, issues:['Паспорт не заполнен после импорта']}});
-  mk(14,'edu',640,330,250,90,60,'overview','Без ИИ (обзорная)','Образование','installed','connected','ул. Ленина, 47Б, детский сад');
+  mk(14,'edu',640,330,250,90,60,'overview','Без ИИ (обзорная)','Общественная безопасность','installed','connected','ул. Ленина, 47Б, детский сад');
   mk(15,'adm',980,420,270,90,80,'overview','Без ИИ (обзорная)','Благоустройство','installed','connected','ул. Магистральная, 111, площадь');
   mk(28,'edds',560,300,315,80,70,'overview','Без ИИ (обзорная)','Общественная безопасность','installed','connected','ул. 40 лет Победы, 2, у ТЦ');
-  mk(29,'edu',330,170,160,90,60,'overview','Без ИИ (обзорная)','Образование','installed','connected','пр-т Мира, 88А, двор школы');
+  mk(29,'edu',330,170,160,90,60,'overview','Без ИИ (обзорная)','Общественная безопасность','installed','connected','пр-т Мира, 88А, двор школы');
   // кандидаты
   mk(16,'edds',760,420,160,90,80,'overview','Без ИИ (обзорная)','Общественная безопасность','installed','agreement','ул. Ленина, 78, у парка',{agreement:'ag15', readyAt:'2026-09-14T05:00:00.000Z', agreedAt:'2026-09-16T06:00:00.000Z', secret:{given:true,date:'2026-09-15',changed:'2026-09-15'}});
   mk(17,'edds',700,250,200,90,70,'overview','Без ИИ (обзорная)','Благоустройство','installed','none','Сквер у ул. Ленина',{readyAt:'2026-09-18T05:00:00.000Z', secret:{given:true,date:'2026-09-18',changed:'2026-09-18'}});
@@ -866,7 +867,7 @@ function seed() {
   const it = (c, extra = {}) => ({camId: c.id, decision: null, security: c.purpose === 'Общественная безопасность' ? {} : null, checks: [], justification: '', ...extra});
   S.apps.push({id: 'NOY-2026-0045', kind: 'place', org: 'edds', status: 'security', created: '2026-09-12T08:00:00.000Z', submittedAt: '2026-09-14T04:00:00.000Z', deadline: addWD('2026-09-14', 10), version: 1,
     items: [it(a45[0], {security: {umvd: {result: 'pos', date: '2026-09-18'}}}), it(a45[1]), it(a45[2])]});
-  const c33 = planned(33,'edu',900,520,40,90,60,'overview','Без ИИ (обзорная)','Образование','ул. Ленина, 94, спортплощадка школы');
+  const c33 = planned(33,'edu',900,520,40,90,60,'overview','Без ИИ (обзорная)','Благоустройство','ул. Ленина, 94, спортплощадка школы');
   S.apps.push({id: 'NOY-2026-0047', kind: 'place', org: 'edu', status: 'submitted', created: '2026-09-21T03:00:00.000Z', submittedAt: '2026-09-21T04:00:00.000Z', deadline: addWD('2026-09-21', 10), version: 1, items: [it(c33)]});
   const c34 = planned(34,'adm',1000,180,200,90,90,'analytics','ГРЗ','Безопасность дорожного движения','ул. Высоцкого, 8, въезд');
   S.apps.push({id: 'NOY-2026-0039', kind: 'place', org: 'adm', status: 'review', created: '2026-09-07T03:00:00.000Z', submittedAt: '2026-09-08T04:00:00.000Z', deadline: addWD('2026-09-08', 10), version: 1, items: [it(c34)]});
@@ -2082,7 +2083,7 @@ function pageNew() {
             <label class="fld"><span>Назначение</span><select id="w-purpose" data-wiz="purpose">${PURPOSES.map(p => `<option${it.purpose === p ? ' selected' : ''}>${p}</option>`).join('')}</select></label>
             <label class="fld"><span>Задача камеры</span><select id="w-ai" data-wiz="ai">${AIS.map(p => `<option value="${p}"${it.ai === p ? ' selected' : ''}>${AI_TASK[p][0]}</option>`).join('')}</select></label>
           </div>
-          ${items.length > 1 && !d.appId ? `<div class="row" style="gap:8px"><button class="btn sm" data-act="wizall">Применить тип, основание, место, назначение и задачу ко всем позициям</button></div>` : ''}
+          ${items.length > 1 && !d.appId ? `<div class="row" style="gap:8px"><button class="btn sm" data-act="wizall" title="Тип камеры, основание, место установки, назначение и задача этой позиции будут скопированы во все остальные">Применить ко всем позициям</button><span class="faint" style="font-size:12px">тип, основание, место, назначение, задача</span></div>` : ''}
           <div class="slider"><span>Азимут</span><input type="range" id="w-az" min="0" max="359" value="${it.az}" data-wiz="az"><output id="o-az">${it.az}°</output></div>
           <div class="slider"><span>Угол обзора</span><input type="range" id="w-fov" min="20" max="180" value="${it.fov}" data-wiz="fov"><output id="o-fov">${it.fov}°</output></div>
           <div class="faint" style="font-size:12px">0° — север, 90° — восток, 180° — юг, 270° — запад</div>
@@ -2203,7 +2204,7 @@ function pageHelp() {
       <li><b>Неточную точку</b> перетащите мышью. Направление и ширину обзора задайте ползунками — сектор сразу виден на карте рядом с чужими камерами.</li>
       <li>Заполните минимум: наименование, тип по классификатору ЕСВ, <b>основание установки</b> (почему здесь нужна камера; ходатайство или другой документ — при наличии), <b>место установки</b> (опора, стена, крыша, внутри помещения), класс, назначение, целевой ИИ, эталонный кадр.</li>
       <li>Если сектор перекрывает существующую камеру, напишите обоснование. <span class="why">Так в реестр не попадают дубли.</span></li>
-      <li><b>Много камер?</b> Ставьте точки подряд: каждая новая берёт тип, основание, место, назначение и задачу у предыдущей. «Применить … ко всем позициям» выравнивает их одним нажатием. Если список уже есть в Excel — «Загрузить списком» по шаблону (координаты, азимут, основание, место…), затем приложите кадры.</li>
+      <li><b>Много камер?</b> Ставьте точки подряд: каждая новая берёт тип, основание, место, назначение и задачу у предыдущей. «Применить ко всем позициям» выравнивает их одним нажатием. Если список уже есть в Excel — «Загрузить списком» по шаблону (координаты, азимут, основание, место…), затем приложите кадры.</li>
       <li>Оранжевая точка на вкладке — позиции чего-то не хватает. Когда все зелёные, нажмите «Подать заявление». Черновик сохраняется сам.</li>
     </ol>
     <h4>2. Дождаться решения</h4>
