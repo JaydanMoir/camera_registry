@@ -2402,7 +2402,8 @@ function pageQueue() {
   const other = S.apps.filter(a => !['submitted','security','review'].includes(a.status)).sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
   const QF = {all: ['В очереди', act], overdue: ['Просрочено', act.filter(a => wdLeft(a.deadline) < 0)], security: ['Ждут силовой блок', act.filter(a => a.status === 'security')], done: ['Рассмотренные и прочие', other]};
   const [title, list] = QF[UI.queueFilter];
-  return `<div class="kpis">
+  return `${(() => { const n = S.discr.filter(d => d.status === 'drb').length; return n ? `<div class="callout warn row" style="gap:10px"><span class="grow"><b>«Ресурсы Ямала» передали на решение расхождения с ЕСВ: ${n}.</b> Неучтённые камеры или камеры, пропавшие из ЕСВ, — нужно решить, что с ними делать.</span><button class="btn pri sm" data-act="nav" data-v="discr">Открыть</button></div>` : ''; })()}
+<div class="kpis">
       ${kpi('info', act.length, 'заявлений в очереди', 'queue', 'all')}
       ${kpi('bad', over, 'просрочено', 'queue', 'overdue')}
       ${kpi('warn', QF.security[1].length, 'ждут силовой блок', 'queue', 'security')}
