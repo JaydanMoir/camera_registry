@@ -1286,15 +1286,17 @@ const API = {
     const pr = parseRtsp(f.rtsp || '');
     if (!pr) bad('VALIDATION', 'Ссылка на видеопоток не распознана');
     const ip = f.ip || pr.host, user = f.user || pr.user, pass = f.password || (pr.pass !== '••••' ? pr.pass : '');
-    const known = !pass && c.secret && c.secret.given;
-    const m = modelById(f.model) || M(c) || {};
+    const had = !pass && c.secret && c.secret.given;
+    /* esvcheck смотрит на сам поток; для модели не из справочника — параметры, которые отдаёт камера (в демо — типовые 1080p) */
+    const known = modelById(f.model) || M(c);
+    const m = known && known.res ? known : {res: [1920, 1080], fps: 25, codecs: ['H.264 High']};
     const res = m.res && m.res[1] >= 1080 ? [1920, 1080] : (m.res || [1280, 720]);
     const reach = /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\./.test(ip) || /^\d+\.\d+\.\d+\.\d+$/.test(ip);
-    const auth = !!user && (!!pass || known);
+    const auth = !!user && (!!pass || had);
     const bitrate = +(m.fps >= 25 ? 3.4 : 1.6).toFixed(1), codec = (m.codecs || ['H.264 Main'])[0];
     const checks = [
       ['Камера отвечает', reach, reach ? `${ip}, 14 мс` : `${ip} — адрес недоступен`],
-      ['Логин и пароль подходят', reach && auth, !user ? 'не указан логин' : (pass || known) ? 'авторизация пройдена' : 'не указан пароль'],
+      ['Логин и пароль подходят', reach && auth, !user ? 'не указан логин' : (pass || had) ? 'авторизация пройдена' : 'не указан пароль'],
     ];
     if (reach && auth) checks.push(['Разрешение не ниже 1920×1080', res[0] >= 1920 && res[1] >= 1080, res.join('×')], ['25 кадров/с', (m.fps || 25) >= 25, (m.fps || 25) + ' к/с'], ['Кодек H.264 Main/High или H.265', /Main|High|H\.265/.test(codec), codec], ['Битрейт не ниже 2 Мбит/с', bitrate >= 2, bitrate + ' Мбит/с']);
     const r = {at: S.clock, checks, ok: checks.every(x => x[1]), pre: true};
@@ -1519,10 +1521,14 @@ const API = {
   },
   runRecon() {
     if (S.role !== 'rya') deny();
-    const reg = S.cameras.filter(c => c.esvId && ['connected', 'suspended'].includes(c.esv) && !(c.connectedAt && c.connectedAt > '2026-09-23T01:00:00.000Z'));
-    const byId = new Map(S.esvExport.map(r => [r.esvId, r]));
+    /* выгрузка ЕСВ снята 23.09.2026 06:00: камер, подключённых позже, в ней быть не может */
+    const EXPORT_AT = '2026-09-23T01:00:00.000Z', late = c => c.connectedAt && c.connectedAt > EXPORT_AT;
+    const reg = S.cameras.filter(c => c.esvId && ['connected', 'suspended'].includes(c.esv) && !late(c));
+    const lateIds = new Set(S.cameras.filter(late).map(c => c.esvId));
+    const exp = S.esvExport.filter(r => !lateIds.has(r.esvId));
+    const byId = new Map(exp.map(r => [r.esvId, r]));
     const out = [];
-    for (const r of S.esvExport) if (!reg.some(c => c.esvId === r.esvId)) out.push({type: 'unknown', esvId: r.esvId, text: `«${r.name}» есть в ЕСВ, в реестре нет — неучтённая камера`, x: r.x, y: r.y});
+    for (const r of exp) if (!reg.some(c => c.esvId === r.esvId)) out.push({type: 'unknown', esvId: r.esvId, text: `«${r.name}» есть в ЕСВ, в реестре нет — неучтённая камера`, x: r.x, y: r.y});
     for (const c of reg) {
       const r = byId.get(c.esvId);
       if (!r) out.push({type: 'missing', camId: c.id, esvId: c.esvId, text: `${c.num} в реестре подключена, в выгрузке ЕСВ отсутствует`});
@@ -1533,7 +1539,7 @@ const API = {
     const held = new Set(keep.filter(d => d.status === 'drb' || d.exception).map(dkey));
     const fresh = out.filter(d => !held.has(dkey(d)));
     S.discr = [...fresh.map((d, i) => ({...d, id: 'd' + Date.now() + i, status: 'open', found: S.clock})), ...keep];
-    S.reconRun = {t: S.clock, reg: reg.length, esv: S.esvExport.length, found: out.length};
+    S.reconRun = {t: S.clock, reg: reg.length, esv: exp.length, found: out.length};
     audit(`Сверка с ЕСВ: расхождений ${out.length}`, 'выгрузка ЕСВ от 23.09.2026 06:00');
     return fresh;
   },
@@ -2928,7 +2934,7 @@ document.addEventListener('click', e => {
       const val = id => $('#' + id).value;
       const r = call('POST', `/api/v1/cameras/${c.num}/esv-data`, () => API.install(v, {model: val('f-model'), newModel: {vendor: val('f-nvendor').trim(), name: val('f-nname').trim(), type: val('f-ntype'), spec: !!($('#f-nspec').files && $('#f-nspec').files.length)}, esvType: val('f-etype'), factFrame: window._factFrame || null, installDate: val('f-date'), ip: val('f-ip').trim(), rtsp: val('f-rtsp').trim(), factAz: +val('f-az'), factFov: +val('f-fov'), group: val('f-group'), descr: val('f-descr'), info: val('f-info'), pass: {serial: val('f-serial').trim(), fw: val('f-fw').trim()}, support: val('f-support'), newSupport: {name: val('f-sname').trim(), contact: val('f-scontact').trim(), num: val('f-scnum').trim(), date: val('f-scdate')}, user: val('f-user').trim(), password: val('f-pass'), ptzUser: val('f-puser'), ptzPassword: val('f-ppass')}));
       window._factFrame = null;
-      if (r && el.dataset.next) { UI.copyFrom = r.ready ? c.id : UI.copyFrom; const nx = S.cameras.filter(x => x.org === c.org && x.place === 'permitted' && x.id !== c.id).sort((a, b) => (a.permitUntil || '9').localeCompare(b.permitUntil || '9'))[0]; toast(r.ready ? `${c.num}: данные приняты` : `${c.num}: сохранено, не хватает: ${r.missing.join(', ')}`, r.ready ? 'ok' : 'bad'); closeModal(); render(); if (nx) mInstall(nx.id); break; }
+      if (r && el.dataset.next) { UI.copyFrom = (r.ready || r.pendingModel || r.accepted) ? c.id : UI.copyFrom; const nx = S.cameras.filter(x => x.org === c.org && x.place === 'permitted' && x.id !== c.id).sort((a, b) => (a.permitUntil || '9').localeCompare(b.permitUntil || '9'))[0]; toast(r.ready ? `${c.num}: данные приняты` : r.pendingModel ? `${c.num}: сохранено, новая модель отправлена на проверку в РЯ` : `${c.num}: сохранено, не хватает: ${r.missing.join(', ') || 'модель не прошла проверку'}`, r.ready || r.pendingModel ? 'ok' : 'bad'); closeModal(); render(); if (nx) mInstall(nx.id); break; }
       if (r) { UI.copyFrom = null; toast(r.ready ? `${c.num}: данные для ЕСВ приняты — камера передана РЯ на подключение` : r.pendingModel ? `${c.num}: данные сохранены, новая модель отправлена на проверку в РЯ` : `${c.num}: ${r.accepted ? 'не хватает данных: ' + r.missing.join(', ') : 'модель не прошла проверку'}`, r.ready || r.pendingModel ? 'ok' : 'bad'); afterChange(); }
       break; }
     case 'm-decide': {
