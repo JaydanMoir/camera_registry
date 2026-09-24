@@ -1,14 +1,40 @@
-# Для Dokploy (сервис Compose) или для любого сервера с Docker: docker compose up -d
+# Демо «Единый реестр камер» с общими данными: приложение + PostgreSQL.
+# Dokploy: Create Service → Compose, этот файл; домен — на сервис app, порт 3000.
+# Любой сервер с Docker: задать POSTGRES_PASSWORD и выполнить  docker compose up -d
 services:
-  camera-registry:
+  app:
     build: .
-    image: camera-registry:latest
+    image: camera-registry-demo:latest
     restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://camreg:${POSTGRES_PASSWORD:-change-me}@db:5432/camreg
+      PORT: "3000"
+    depends_on:
+      db:
+        condition: service_healthy
     expose:
-      - "80"            # в Dokploy домен и HTTPS настраиваются на порт 80
-    # ports: ["8080:80"]   # раскомментировать для запуска без Dokploy
+      - "3000"
+    # ports: ["8080:3000"]   # раскомментировать для запуска без Dokploy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/healthz"]
       interval: 30s
       timeout: 3s
       retries: 3
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: camreg
+      POSTGRES_USER: camreg
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U camreg -d camreg"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:

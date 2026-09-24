@@ -46,4 +46,4 @@ https://map.yanao.ru/elitegis/rest/services/common/basemap/MapServer/tile/{z}/{y
 
 ## Развёртывание
 
-В репозитории есть `Dockerfile` (nginx) для развёртывания на своём сервере, например через Dokploy. Инструкция — в [DEPLOY.md](DEPLOY.md).
+В репозитории есть `Dockerfile` (Node.js) и `docker-compose.yml` (приложение + PostgreSQL) для развёртывания на своём сервере, например через Dokploy. На сервере данные демо общие для всех участников. Инструкция — в [DEPLOY.md](DEPLOY.md).

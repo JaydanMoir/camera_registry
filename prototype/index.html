@@ -272,6 +272,7 @@ figure{margin:0}
 .item-tab .itl.noname{font-style:italic;color:var(--soft)}
 .newsup{display:grid;gap:10px}
 .newsup[hidden]{display:none}
+.syncmark{font-size:11px;color:var(--nav-soft);margin-top:4px}
 .empty-cta{display:grid;gap:8px;justify-items:start;padding:28px 22px}
 .empty-cta b{font-size:15px}
 .welcome h2{font-family:var(--f-disp);font-size:20px;margin:0 0 6px}
@@ -800,7 +801,84 @@ let DL = null;
 (async () => { try { if (window.claude && typeof window.claude.use === 'function') { DL = await window.claude.use('downloads'); if (DL && UI.page === 'registry') render(); } } catch (e) { DL = null; } })();
 
 function tick(min = 4) { const d = new Date(S.clock); d.setMinutes(d.getMinutes() + min); S.clock = d.toISOString(); return S.clock; }
-function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} }
+/* Хранение. Если страница открыта с демо-сервера (Dokploy), состояние общее и лежит в PostgreSQL:
+   все участники видят одни данные. Иначе (claude.ai, GitHub, файл) — как раньше, в этом браузере.
+   Роль, организация в демо и незаконченный черновик заявления у каждого свои. */
+const SYNC = {shared: false, version: 0, pushing: false, dirty: false, timer: 0, lastJson: '', last: null, pendingRender: false, offline: false};
+const LOCAL_KEY = 'erk-local-v1', LOCAL_F = ['role', 'ownerOrg', 'draft'];
+const sharedPart = () => { const sh = {...S}; for (const k of LOCAL_F) delete sh[k]; return sh; };
+function saveLocal() { try { localStorage.setItem(LOCAL_KEY, JSON.stringify(Object.fromEntries(LOCAL_F.map(k => [k, S[k] ?? null])))); } catch (e) {} }
+function loadLocal() { try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || '{}') || {}; } catch (e) { return {}; } }
+function save() {
+  if (!SYNC.shared) { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} return; }
+  saveLocal();
+  const js = JSON.stringify(sharedPart());
+  if (js === SYNC.lastJson && !SYNC.dirty) return;
+  SYNC.dirty = true; clearTimeout(SYNC.timer); SYNC.timer = setTimeout(pushState, 200);
+}
+async function pushState() {
+  if (SYNC.pushing) { clearTimeout(SYNC.timer); SYNC.timer = setTimeout(pushState, 200); return; }
+  if (!SYNC.dirty) return;
+  SYNC.pushing = true; SYNC.dirty = false;
+  const js = JSON.stringify(sharedPart());
+  try {
+    const r = await fetch('api/state', {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: `{"version":${SYNC.version},"state":${js}}`});
+    if (r.status === 409) { SYNC.pushing = false; await pullState(true); toast('Пока вы работали, данные изменил другой участник — экран обновлён. Повторите последнее действие.', 'bad'); return; }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    SYNC.version = (await r.json()).version; SYNC.lastJson = js; SYNC.last = new Date();
+    if (SYNC.offline) { SYNC.offline = false; toast('Связь с сервером восстановлена, изменения сохранены'); }
+  } catch (e) {
+    SYNC.dirty = true; if (!SYNC.offline) { SYNC.offline = true; toast('Нет связи с сервером — изменения сохранятся, когда связь появится', 'bad'); }
+    clearTimeout(SYNC.timer); SYNC.timer = setTimeout(pushState, 4000);
+  }
+  SYNC.pushing = false;
+  if (SYNC.dirty) { clearTimeout(SYNC.timer); SYNC.timer = setTimeout(pushState, 200); }
+}
+const uiBusy = () => !!$('.modal') || !!(document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
+function applyServer(state, version) {
+  const loc = S ? {role: S.role, ownerOrg: S.ownerOrg, draft: S.draft} : loadLocal();
+  S = {...state, role: loc.role || 'owner', ownerOrg: loc.ownerOrg || 'edds', draft: loc.draft || null};
+  SYNC.version = version; SYNC.lastJson = JSON.stringify(sharedPart()); SYNC.last = new Date();
+  setOwnerOrg(S.ownerOrg);
+}
+async function pullState(force) {
+  try {
+    const r = await fetch('api/state', {cache: 'no-store'}); if (!r.ok) return;
+    const j = await r.json(); if (!j.state || (!force && j.version <= SYNC.version)) return;
+    applyServer(j.state, j.version);
+    if (!force && uiBusy()) { SYNC.pendingRender = true; return; }
+    SYNC.pendingRender = false; render();
+  } catch (e) {}
+}
+function startPoll() {
+  setInterval(async () => {
+    if (!SYNC.shared || SYNC.dirty || SYNC.pushing) return;
+    try {
+      const j = await (await fetch('api/state/version', {cache: 'no-store'})).json();
+      if (j.version > SYNC.version) await pullState(false);
+      else if (SYNC.pendingRender && !uiBusy()) { SYNC.pendingRender = false; render(); }
+    } catch (e) {}
+  }, 3000);
+}
+async function resetShared() {
+  const r = await fetch('api/state/reset', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({state: sharedPart()})});
+  if (r.ok) { SYNC.version = (await r.json()).version; SYNC.lastJson = JSON.stringify(sharedPart()); SYNC.dirty = false; }
+}
+async function boot() {
+  try {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 3000);
+    const r = await fetch('api/state', {cache: 'no-store', signal: ctl.signal}); clearTimeout(t);
+    if (r.ok && /json/.test(r.headers.get('content-type') || '')) {
+      const j = await r.json(); SYNC.shared = true;
+      if (j.state && j.state.v === 1) applyServer(j.state, j.version);
+      else { const loc = loadLocal(); seed(); S.role = loc.role || 'owner'; S.ownerOrg = loc.ownerOrg || 'edds'; S.draft = loc.draft || null; SYNC.version = j.version; await resetShared(); }
+    }
+  } catch (e) {}
+  if (!SYNC.shared) { S = load(); if (!S) { seed(); save(); } }
+  setOwnerOrg(S.ownerOrg);
+  render();
+  if (SYNC.shared) startPoll();
+}
 function load() { try { const r = localStorage.getItem(STORE_KEY); if (r) { const s = JSON.parse(r); if (s && s.v === 1) return s; } } catch (e) {} return null; }
 const cam = id => S.cameras.find(c => c.id === id);
 const appById = id => S.apps.find(a => a.id === id);
@@ -1702,6 +1780,7 @@ function render() {
       </nav></div>
       <div class="side-foot">
         <div>Демо-данные: пилотное МО Ноябрьск. Часы системы: ${fmtDT(S.clock)}</div>
+        <div class="syncmark">${SYNC.shared ? '● Общие данные на сервере — изменения видят все участники' : 'Данные хранятся в этом браузере'}</div>
         <button data-act="reset">Сбросить демо-данные</button>
       </div>
     </aside>
@@ -1784,7 +1863,7 @@ function pageHome() {
         <div>${feed.map(n => `<div class="note" data-act="note" data-v="${n.id}" style="cursor:pointer"><small>${fmtDT(n.t)}</small>${esc(n.text)}</div>`).join('') || '<div class="empty">Событий нет</div>'}</div>
       </section>
     </div>
-    <p class="demo-note">Это кликабельный прототип по проекту ТЗ v1.5. Как устроен процесс и что делает каждый участник — в разделе «Инструкция». Логика процесса собрана в одном модуле, который повторяет серверный API из ТЗ: все проверки, переходы и права выполняются в нём, а интерфейс только вызывает его — в настоящем прототипе этот модуль будет сервером. Переключайте рабочие места слева, чтобы пройти сценарий целиком. Данные хранятся только в вашем браузере.</p>`;
+    <p class="demo-note">Это кликабельный прототип по проекту ТЗ v1.5. Как устроен процесс и что делает каждый участник — в разделе «Инструкция». Логика процесса собрана в одном модуле, который повторяет серверный API из ТЗ: все проверки, переходы и права выполняются в нём, а интерфейс только вызывает его — в настоящем прототипе этот модуль будет сервером. Переключайте рабочие места слева, чтобы пройти сценарий целиком. ${SYNC.shared ? 'Данные общие для всех участников — хранятся на демо-сервере.' : 'Данные хранятся только в вашем браузере.'}</p>`;
 }
 
 /* ----- Реестр ----- */
@@ -2260,7 +2339,7 @@ function pageHelp() {
   <section class="card"><div class="card-b"><h2>Как пользоваться прототипом</h2><ul>
     <li>Слева переключаются рабочие места: владелец, ДРБ, «Ресурсы Ямала». Пройдите одну камеру по всем этапам, переключаясь между ними.</li>
     <li>У владельца под рабочим местом выбирается организация: ЕДДС — камеры уже есть, СОШ № 1 — новая организация, которая зашла впервые и ещё не имеет ни камер, ни соглашения.</li>
-    <li>Данные хранятся только в вашем браузере. «Сбросить демо-данные» внизу слева возвращает исходное состояние.</li>
+    <li>Если прототип открыт с демо-сервера, данные общие: заявление, поданное владельцем, сразу видит ДРБ на другом компьютере (внизу слева — «Общие данные на сервере»). Роль и черновик заявления у каждого свои. В остальных случаях данные хранятся только в вашем браузере. «Сбросить демо-данные» возвращает исходное состояние.</li>
     <li>«Журнал» → «Вызовы API» показывает, какие запросы уходят на сервер и что он отвечает, включая отказы (403, 409, 422).</li>
     <li>В «Неисправностях» у РЯ можно смоделировать отказ камеры и посмотреть, как уходит заявка исполнителю техобслуживания.</li>
     <li>Подложка карты — ЕКС ЯНАО. Если сервис недоступен, прототип показывает встроенную копию.</li>
@@ -2698,7 +2777,7 @@ document.addEventListener('click', e => {
   switch (act) {
     case 'role': S.role = v; UI.page = NAV[v][0][0]; UI.bell = false; UI.camId = null; $('#layer').innerHTML = ''; save(); render(); break;
     case 'nav': if (v !== UI.page) { if (v === 'apps') UI.appsFilter = 'all'; if (v === 'queue') UI.queueFilter = 'all'; } UI.page = v; UI.bell = false; if (v === 'new' && S.draft && S.draft.appId && !S.draft.items.length) S.draft = null; render(); window.scrollTo(0, 0); break;
-    case 'reset': if (el.dataset.confirm) { try { localStorage.removeItem(STORE_KEY); } catch (x) {} seed(); save(); for (const k in VIEWS) delete VIEWS[k]; setOwnerOrg(S.ownerOrg); UI.page = 'home'; UI.camId = null; $('#layer').innerHTML = ''; render(); toast('Демо-данные сброшены'); } else { el.dataset.confirm = '1'; el.textContent = 'Нажмите ещё раз для сброса'; setTimeout(() => { if (el.isConnected) { delete el.dataset.confirm; el.textContent = 'Сбросить демо-данные'; } }, 3000); } break;
+    case 'reset': if (el.dataset.confirm) { const keep = {role: S.role, ownerOrg: S.ownerOrg}; try { localStorage.removeItem(STORE_KEY); } catch (x) {} seed(); if (SYNC.shared) { Object.assign(S, keep, {draft: null}); saveLocal(); resetShared(); } else save(); for (const k in VIEWS) delete VIEWS[k]; setOwnerOrg(S.ownerOrg); UI.page = 'home'; UI.camId = null; $('#layer').innerHTML = ''; render(); toast(SYNC.shared ? 'Демо-данные сброшены для всех участников' : 'Демо-данные сброшены'); } else { el.dataset.confirm = '1'; el.textContent = SYNC.shared ? 'Сбросить для всех? Нажмите ещё раз' : 'Нажмите ещё раз для сброса'; setTimeout(() => { if (el.isConnected) { delete el.dataset.confirm; el.textContent = 'Сбросить демо-данные'; } }, 3000); } break;
     case 'bell': UI.bell = !UI.bell; if (!UI.bell) { myNotes().forEach(n => n.read = true); save(); } render(); break;
     case 'note': { const n = S.notes.find(x => x.id === v); n.read = true; UI.bell = false; save(); if (n.link) { if (n.link.cam) { render(); openCam(n.link.cam); } else { UI.page = n.link.page; if (n.link.id) UI.appId = n.link.id; UI.focusItem = 0; render(); } } else render(); break; }
     case 'cam': openCam(v); if (UI.page === 'registry') { $$('tr.sel').forEach(r => r.classList.remove('sel')); el.closest('tr')?.classList.add('sel'); } break;
@@ -2874,8 +2953,5 @@ document.addEventListener('change', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('.modal')) closeModal(); else if (UI.camId) closeCam(); } });
 
 /* ---------- запуск ---------- */
-S = load();
-if (!S) { seed(); save(); }
-setOwnerOrg(S.ownerOrg);
-render();
+boot();
 </script>

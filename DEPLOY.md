@@ -1,46 +1,61 @@
-# Развёртывание демо-прототипа «Единый реестр камер»
+# Развёртывание демо «Единый реестр камер» (общие данные в PostgreSQL)
 
-Прототип — одна статическая страница: сервер приложений и база данных не нужны. Контейнер — nginx, порт **80**.
+Состав: приложение на Node.js (страница прототипа + API общего состояния) и PostgreSQL. Приложение слушает порт **3000**.
+
+- Все, кто открывает адрес, работают с **одними данными**: заявление, поданное владельцем, через пару секунд видит ДРБ на другом компьютере.
+- Роль, демо-организация и незаконченный черновик заявления у каждого свои (хранятся в браузере).
+- «Сбросить демо-данные» сбрасывает данные **для всех**.
+- Если двое изменили данные одновременно, второй получит сообщение «данные изменил другой участник», экран обновится, действие нужно повторить.
+- Без сервера (claude.ai, GitHub, файл с диска) страница работает как раньше — данные в браузере.
 
 | Путь | Что открывается |
 |---|---|
 | `/` | прототип |
 | `/lifecycle` | модель жизненного цикла камеры |
-| `/healthz` | проверка работоспособности, ответ `ok` |
+| `/healthz` | проверка работоспособности (`ok`, проверяет и базу) |
+| `/api/state` | общее состояние демо (используется страницей) |
 
-Образ проверен: собирается по `Dockerfile`, размер ~85 МБ, страница отдаётся сжатой (5,5 → 3,7 МБ), healthcheck — healthy.
+## Способ 1. Dokploy, сервис Compose (рекомендуется — приложение и база одним сервисом)
 
-## Способ 1. Dokploy из GitHub (рекомендуется)
+1. **Projects → Create Project** → **Create Service → Compose**.
+   Name: `Реестр камер — демо`, App Name: `camera-registry-demo`.
+2. **Provider**: GitHub, репозиторий `JaydanMoir/camera_registry`, ветка `main`, Compose Path: `docker-compose.yml`.
+3. **Environment**: `POSTGRES_PASSWORD=<придумайте надёжный пароль>`.
+4. **Deploy**.
+5. **Domains → Add Domain**: Service Name `app`, **Container Port 3000**, HTTPS — Let's Encrypt.
+6. По желанию: Autodeploy; Basic Auth, если демо нужно закрыть от посторонних.
 
-1. **Projects → Create Project**, например «Единый реестр камер».
-2. **Create Service → Application**.
-3. **Provider**: GitHub (или Git по адресу `https://github.com/JaydanMoir/camera_registry.git`), ветка `main`.
-4. **Build Type**: `Dockerfile`, путь `Dockerfile`.
-5. **Deploy**.
-6. **Domains → Add Domain**: домен, **Container Port 80**, HTTPS — Let's Encrypt.
-7. По желанию: **Autodeploy** (обновление при каждом пуше в `main`) и Basic Auth, если демо нужно закрыть паролем.
+Данные базы хранятся в томе `pgdata` и переживают перезапуски и передеплой.
 
-## Способ 2. Dokploy без GitHub — архив с исходниками
+## Способ 2. Dokploy: отдельная база и приложение
 
-Файл `camera_registry-source.zip` содержит всё для сборки (`Dockerfile`, `deploy/nginx.conf`, `docker-compose.yml`, страницы).
+1. **Create Service → Database → PostgreSQL** (например, `camera-registry-db`). После создания скопируйте **Internal Connection URL**.
+2. **Create Service → Application**: GitHub `JaydanMoir/camera_registry`, ветка `main`, Build Type `Dockerfile`.
+3. **Environment**: `DATABASE_URL=<Internal Connection URL>`.
+4. **Deploy**, затем **Domains**: Container Port **3000**, HTTPS.
 
-- В Dokploy: **Application → Provider: Drop** (загрузка архива) → выбрать zip → Build Type `Dockerfile` → Deploy → домен на порт 80.
-- Или **Create Service → Compose**, загрузить содержимое архива и указать `docker-compose.yml`; домен — на сервис `camera-registry`, порт 80.
+## Способ 3. Любой сервер с Docker (без Dokploy)
 
-## Способ 3. Готовый образ, без сборки
-
-Файлы `camera-registry-image-amd64.tar.gz` (обычный сервер, x86-64) и `camera-registry-image-arm64.tar.gz` (ARM).
+Из архива `camera_registry-source.zip`:
 
 ```bash
-docker load -i camera-registry-image-amd64.tar.gz
-docker run -d --name camera-registry --restart unless-stopped -p 8080:80 camera-registry:amd64
+POSTGRES_PASSWORD='надёжный-пароль' docker compose up -d --build
 ```
 
-Открыть `http://адрес-сервера:8080`. В Dokploy такой образ можно использовать через **Provider: Docker**, если загрузить его в реестр образов (Docker Hub, GHCR или свой).
+Чтобы открыть без прокси, в `docker-compose.yml` раскомментируйте `ports: ["8080:3000"]` → `http://адрес-сервера:8080`.
+
+Или из готового образа приложения (`camera-registry-demo-amd64.tar.gz`) и любой PostgreSQL 13+:
+
+```bash
+docker load -i camera-registry-demo-amd64.tar.gz
+docker run -d --name camera-registry --restart unless-stopped -p 8080:3000 -e DATABASE_URL='postgres://user:pass@host:5432/db' camera-registry-demo:amd64
+```
+
+Таблица создаётся сама при первом запуске.
 
 ## Что учесть
 
-- Данные демо хранятся только в браузере каждого зрителя (localStorage). На сервере ничего не сохраняется, резервные копии не нужны.
-- Подложку карты и адреса браузер зрителя запрашивает напрямую у `map.yanao.ru`. Если ЕКС зрителю недоступна, прототип сам переключается на встроенную копию.
-- Обновление: новая версия `prototype/index.html` → пуш в `main` (способ 1) или новый архив/образ (способы 2–3).
-- Проверка локально: `docker build -t camera-registry . && docker run --rm -p 8080:80 camera-registry` → http://localhost:8080
+- Это демо: логика процесса выполняется на странице, сервер хранит общее состояние с контролем версий. В целевой системе логика и права — на сервере (ТЗ).
+- Любой, у кого есть адрес, может менять демо-данные. Для показа вне команды включите Basic Auth.
+- Подложку карты и адреса браузер зрителя берёт напрямую у `map.yanao.ru`; если ЕКС недоступна — встроенная копия.
+- Проверено: `docker compose up` → приложение и база healthy; две вкладки видят изменения друг друга; одновременные изменения не затирают друг друга; данные сохраняются после перезапуска.

@@ -1,6 +1,8 @@
 .git
 .gitignore
 tz
+node_modules
 README.md
 DEPLOY.md
 *.zip
+*.tar.gz
