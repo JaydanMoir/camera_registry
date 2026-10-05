@@ -405,7 +405,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const TZ = 'Asia/Yekaterinburg';
 const fmtD = iso => iso ? new Date(iso).toLocaleDateString('ru-RU', {timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric'}) : '—';
 const fmtDT = iso => iso ? new Date(iso).toLocaleString('ru-RU', {timeZone: TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) : '—';
-const STORE_KEY = 'erk-prototype-v12';
+const STORE_KEY = 'erk-prototype-v15';
 
 /* ---------- справочники ---------- */
 const ORGS = {
@@ -966,7 +966,7 @@ function seed() {
   // выгрузка ЕСВ (снимок)
   S.esvExport = S.cameras.filter(c => c.esvId && ['connected','suspended'].includes(c.esv) && c.id !== 'c14')
     .map(c => ({esvId: c.esvId, name: c.fullName, x: c.id === 'c15' ? c.x + 16 : c.x, y: c.y}));
-  S.esvExport.push({esvId: 'ESV-40991', name: 'НБР Двор ул. Холмогорская, 60', x: 1110, y: 330});
+  S.esvExport.push({esvId: 'ESV-40991', name: 'НБР Двор ул. Холмогорская, 64', x: -33, y: 478, descr: 'Двор жилого дома, вход в подъезд и детская площадка', group: 'НБР · без группы', type: 'Внешняя', model: 'Hikvision DS-2CD2143G2-I', stream: '10.52.97.140:554', addedAt: '2024-11-12', online: true});
   // журнал
   const au = (t, who, action, obj) => S.audit.push({t, who, action, obj});
   au('2026-09-17T07:30:00.000Z','Специалист ДРБ','Решение «на доработку» (R04)','NOY-2026-0041 / NOY-00035');
@@ -2529,30 +2529,69 @@ function pageFaults() {
 }
 const DISCR_T = {unknown: ['Неучтённая камера','bad'], missing: ['Нет в ЕСВ','warn'], mismatch: ['Данные не совпадают','warn']};
 /* ДРБ: расхождения с ЕСВ, переданные «Ресурсами Ямала» */
+const discrActsRya = d => d.type === 'unknown' ? `<button class="btn sm pri" data-act="discr" data-v="${d.id}" data-o="import">Завести в реестр</button><button class="btn sm" data-act="discr" data-v="${d.id}" data-o="escalate">Передать в ДРБ</button>`
+    : d.type === 'mismatch' ? `<button class="btn sm pri" data-act="discr" data-v="${d.id}" data-o="fixEsv">Исправить ЕСВ по реестру</button><button class="btn sm" data-act="discr" data-v="${d.id}" data-o="exception">Исключение</button>`
+    : `<button class="btn sm" data-act="discr" data-v="${d.id}" data-o="escalate">Передать в ДРБ</button><button class="btn sm" data-act="discr" data-v="${d.id}" data-o="exception">Исключение</button>`;;
+const discrActsDrb = d => d.type === 'unknown'
+    ? `<button class="btn sm pri" data-act="ddiscr" data-v="${d.id}" data-o="assign">Закрепить за организацией</button><button class="btn sm bad" data-act="ddiscr" data-v="${d.id}" data-o="disable">Отключить от ЕСВ</button><button class="btn sm" data-act="ddiscr" data-v="${d.id}" data-o="exception">Допустимо</button>`
+    : `<button class="btn sm pri" data-act="ddiscr" data-v="${d.id}" data-o="reconnect">Вернуть на подключение</button><button class="btn sm" data-act="ddiscr" data-v="${d.id}" data-o="archive">В архив</button><button class="btn sm" data-act="ddiscr" data-v="${d.id}" data-o="exception">Допустимо</button>`;;
+/* подробности расхождения: что знает ЕСВ, где это на карте, какие камеры реестра рядом */
+function discrViewHTML(d) {
+  const rec = S.esvExport.find(r => r.esvId === d.esvId) || {}, c = d.camId ? cam(d.camId) : null;
+  const px = rec.x ?? (c && c.x), py = rec.y ?? (c && c.y);
+  if (px == null) return '<div class="empty">Нет координат</div>';
+  const near = S.cameras.filter(x => x !== c && derived(x) !== 'arch' && Math.hypot(x.x - px, x.y - py) * MAP.mpp <= 150)
+    .map(x => [x, Math.round(Math.hypot(x.x - px, x.y - py) * MAP.mpp)]).sort((a, b) => a[1] - b[1]);
+  const v = {x: px - 110, y: py - 70, w: 220, h: 140};
+  const svg = `<svg viewBox="${v.x} ${v.y} ${v.w} ${v.h}" class="passmap" role="img" aria-label="Фрагмент карты">${tilesSVG(v, 440, 280)}
+    ${near.map(([x]) => `<path class="sec c-${derived(x)}" d="${sectorPath(x.x, x.y, x.az, x.fov, x.range)}"/><circle class="pt c-${derived(x)}" cx="${x.x}" cy="${x.y}" r="3"/>`).join('')}
+    ${c ? `<path class="sec c-work" d="${sectorPath(c.x, c.y, c.az, c.fov, c.range)}"/><circle class="pt c-work" cx="${c.x}" cy="${c.y}" r="4"/>` : ''}
+    ${c && rec.x != null && (rec.x !== c.x || rec.y !== c.y) ? `<line x1="${c.x}" y1="${c.y}" x2="${rec.x}" y2="${rec.y}" stroke="var(--bad)" stroke-width="1.5" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"/>` : ''}
+    ${rec.x != null ? `<circle cx="${rec.x}" cy="${rec.y}" r="6" fill="none" stroke="var(--bad)" stroke-width="2.5" vector-effect="non-scaling-stroke"/><circle cx="${rec.x}" cy="${rec.y}" r="2" fill="var(--bad)"/>` : ''}</svg>`;
+  const [lat, lon] = toLatLon(px, py), g = geoAt(px, py);
+  const owner = rec.name ? Object.values(ORGS).find(o => rec.name.startsWith(o.mask)) : null;
+  const kv = (rows) => `<dl class="kv esvkv">${rows.filter(r => r[1] != null && r[1] !== '').map(([k, x]) => `<dt>${esc(k)}</dt><dd>${esc(x)}</dd>`).join('')}</dl>`;
+  let facts = '';
+  if (d.type === 'unknown') facts = `<div class="sec-t">Что известно из ЕСВ</div>` + kv([['ID в ЕСВ', d.esvId], ['Наименование в ЕСВ', rec.name], ['Описание в ЕСВ', rec.descr], ['Группа в ЕСВ', rec.group], ['Тип', rec.type], ['Модель', rec.model], ['Адрес потока', rec.stream], ['В ЕСВ с', rec.addedAt ? fmtD(rec.addedAt + 'T12:00:00Z') : null], ['Поток', rec.online == null ? null : rec.online ? 'идёт' : 'нет'], ['Координаты', `${lat.toFixed(6)}, ${lon.toFixed(6)}`], ['Адрес по ЕКС', g.addr], ['Возможный владелец', owner ? owner.name + ' (по маске наименования)' : 'по наименованию не определяется — маска без кода организации']]);
+  else if (c) {
+    const [rl, ro] = toLatLon(c.x, c.y);
+    facts = `<div class="sec-t">Камера в реестре</div>` + kv([['Номер', c.num], ['Наименование', c.name], ['Владелец', ORGS[c.org].name], ['Адрес', c.address], ['Координаты в реестре', `${rl.toFixed(6)}, ${ro.toFixed(6)}`], ['ID в ЕСВ', c.esvId], ['Подключена', c.connectedAt ? fmtD(c.connectedAt) : null], ['Техобслуживание', supportOf(c).name]])
+      + (d.type === 'missing' ? `<div class="callout warn" style="font-size:12.5px">В выгрузке ЕСВ записи с ID ${esc(d.esvId)} нет: камеру удалили в ЕСВ, сменился ID или она не была добавлена.</div>`
+        : rec.x != null ? `<div class="callout warn" style="font-size:12.5px">В ЕСВ координаты ${toLatLon(rec.x, rec.y).map(x => x.toFixed(6)).join(', ')} — на ${Math.round(Math.hypot(rec.x - c.x, rec.y - c.y) * MAP.mpp)} м от точки реестра (пунктир на карте).</div>` : '');
+  }
+  const nearHTML = near.length ? `<div class="sec-t">Камеры реестра в радиусе 150 м</div><div class="tbl-wrap"><table><tbody>${near.map(([x, m]) => `<tr class="click" data-act="discrcam" data-v="${x.id}"><td class="num">${x.num}</td><td>${esc(x.name)}<div class="faint" style="font-size:12px">${esc(ORGS[x.org].short)} · ${esc(x.esvId || 'нет ID ЕСВ')}</div></td><td>${dpill(x)}</td><td class="num">${m} м</td></tr>`).join('')}</tbody></table></div>${d.type === 'unknown' ? '<div class="faint" style="font-size:12px">Если одна из них — та же камера, это дубль: проверьте ID ЕСВ и кадр, вместо заведения новой исправьте связь.</div>' : ''}`
+    : `<div class="faint" style="font-size:12.5px">Камер реестра в радиусе 150 м нет.</div>`;
+  return `<div class="row" style="gap:8px">${pill(...DISCR_T[d.type])}<span class="muted" style="font-size:12.5px">найдено при сверке ${fmtDT(d.found || S.clock)}</span></div>
+    <div>${esc(d.text)}</div>
+    <figure class="frame" style="margin:0">${svg}<figcaption>Красный круг — точка из ЕСВ${c ? ', зелёная — по реестру' : ''}; рядом — камеры реестра</figcaption></figure>
+    ${facts}${nearHTML}`;
+}
+function mDiscr(id) {
+  const d = S.discr.find(x => x.id === id); if (!d) return;
+  const acts = S.role === 'rya' && d.status === 'open' ? discrActsRya(d) : S.role === 'drb' && d.status === 'drb' ? discrActsDrb(d) : '';
+  modal(`Расхождение с ЕСВ${d.esvId ? ' · ' + d.esvId : ''}`, discrViewHTML(d) + (d.status === 'resolved' ? `<div class="callout ok" style="font-size:12.5px">Решение: ${esc(d.resolution)}</div>` : d.status === 'drb' ? `<div class="callout info" style="font-size:12.5px">Передано в ДРБ ${fmtDT(d.sentAt)} — ждёт решения</div>` : ''),
+    `<button class="btn" data-act="mclose">Закрыть</button>${d.camId ? `<button class="btn" data-act="discrcam" data-v="${d.camId}">Карточка камеры</button>` : ''}${acts}`);
+}
 function pageDiscr() {
   const list = S.discr.filter(d => d.status === 'drb'), done = S.discr.filter(d => d.status === 'resolved' && d.by && ROLES.drb.actor === d.by);
-  const acts = d => d.type === 'unknown'
-    ? `<button class="btn sm pri" data-act="ddiscr" data-v="${d.id}" data-o="assign">Закрепить за организацией</button><button class="btn sm bad" data-act="ddiscr" data-v="${d.id}" data-o="disable">Отключить от ЕСВ</button><button class="btn sm" data-act="ddiscr" data-v="${d.id}" data-o="exception">Допустимо</button>`
-    : `<button class="btn sm pri" data-act="ddiscr" data-v="${d.id}" data-o="reconnect">Вернуть на подключение</button><button class="btn sm" data-act="ddiscr" data-v="${d.id}" data-o="archive">В архив</button><button class="btn sm" data-act="ddiscr" data-v="${d.id}" data-o="exception">Допустимо</button>`;
+  const acts = discrActsDrb;
   return `<div class="callout info">Сюда попадают расхождения реестра и ЕСВ, которые «Ресурсы Ямала» не могут разобрать сами: камера есть в ЕСВ, но её нет в реестре, или камера в реестре подключена, но в ЕСВ её нет. Решение уходит в РЯ и владельцу.</div>
     <section class="card"><div class="card-h"><h3>Ждут решения ДРБ</h3><span class="muted">${list.length}</span></div><div class="tbl-wrap"><table><thead><tr><th>Вид</th><th>Описание</th><th>ID ЕСВ</th><th>Передано</th><th></th></tr></thead><tbody>
-      ${list.map(d => `<tr><td>${pill(...DISCR_T[d.type])}</td><td>${esc(d.text)}${d.camId ? ` · <a href="#" data-act="cam" data-v="${d.camId}">карточка</a>` : ''}</td><td class="num">${d.esvId || ''}</td><td>${fmtDT(d.sentAt)}</td><td style="text-align:right"><div class="row" style="justify-content:flex-end">${acts(d)}</div></td></tr>`).join('') || '<tr><td colspan="5" class="empty">Переданных расхождений нет</td></tr>'}
+      ${list.map(d => `<tr class="click" data-act="discrview" data-v="${d.id}"><td>${pill(...DISCR_T[d.type])}</td><td>${esc(d.text)} <span class="faint" style="font-size:12px">· подробнее</span>${d.camId ? ` · <a href="#" data-act="cam" data-v="${d.camId}">карточка</a>` : ''}</td><td class="num">${d.esvId || ''}</td><td>${fmtDT(d.sentAt)}</td><td style="text-align:right"><div class="row" style="justify-content:flex-end">${acts(d)}</div></td></tr>`).join('') || '<tr><td colspan="5" class="empty">Переданных расхождений нет</td></tr>'}
     </tbody></table></div></section>
-    ${done.length ? `<section class="card"><div class="card-h"><h3>Решённые ДРБ</h3></div><div class="tbl-wrap"><table><tbody>${done.map(d => `<tr><td>${pill(...DISCR_T[d.type])}</td><td>${esc(d.text)}</td><td>${esc(d.resolution)}</td><td>${fmtDT(d.at)}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`;
+    ${done.length ? `<section class="card"><div class="card-h"><h3>Решённые ДРБ</h3></div><div class="tbl-wrap"><table><tbody>${done.map(d => `<tr class="click" data-act="discrview" data-v="${d.id}"><td>${pill(...DISCR_T[d.type])}</td><td>${esc(d.text)}</td><td>${esc(d.resolution)}</td><td>${fmtDT(d.at)}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`;
 }
 function pageRecon() {
   const r = S.reconRun, open = S.discr.filter(d => d.status === 'open'), atDrb = S.discr.filter(d => d.status === 'drb'), done = S.discr.filter(d => d.status === 'resolved');
   const T = DISCR_T;
-  const acts = d => d.type === 'unknown' ? `<button class="btn sm pri" data-act="discr" data-v="${d.id}" data-o="import">Завести в реестр</button><button class="btn sm" data-act="discr" data-v="${d.id}" data-o="escalate">Передать в ДРБ</button>`
-    : d.type === 'mismatch' ? `<button class="btn sm pri" data-act="discr" data-v="${d.id}" data-o="fixEsv">Исправить ЕСВ по реестру</button><button class="btn sm" data-act="discr" data-v="${d.id}" data-o="exception">Исключение</button>`
-    : `<button class="btn sm" data-act="discr" data-v="${d.id}" data-o="escalate">Передать в ДРБ</button><button class="btn sm" data-act="discr" data-v="${d.id}" data-o="exception">Исключение</button>`;
+  const acts = discrActsRya;
   return `<div class="row"><button class="btn pri" data-act="recon">Загрузить выгрузку ЕСВ от 23.09.2026 06:00 и сверить</button>${r ? `<span class="muted">Последняя сверка ${fmtDT(r.t)}: в реестре ${r.reg}, в ЕСВ ${r.esv}, расхождений ${r.found}</span>` : '<span class="muted">Сверка ещё не запускалась</span>'}</div>
     <div class="callout info">Реестр — источник истины. Если данные расходятся, ЕСВ приводится к реестру; обратное — только решением РЯ с причиной. В промышленной версии сверка идёт по API ЕСВ ежесуточно.</div>
     <section class="card"><div class="card-h"><h3>Открытые расхождения</h3><span class="muted">${open.length}</span></div><div class="tbl-wrap"><table><thead><tr><th>Вид</th><th>Описание</th><th>ID ЕСВ</th><th></th></tr></thead><tbody>
-      ${open.map(d => `<tr><td>${pill(...T[d.type])}</td><td>${esc(d.text)}</td><td class="num">${d.esvId || ''}</td><td style="text-align:right"><div class="row" style="justify-content:flex-end">${acts(d)}</div></td></tr>`).join('') || `<tr><td colspan="4" class="empty">${r ? 'Расхождений нет' : 'Запустите сверку'}</td></tr>`}
+      ${open.map(d => `<tr class="click" data-act="discrview" data-v="${d.id}"><td>${pill(...T[d.type])}</td><td>${esc(d.text)} <span class="faint" style="font-size:12px">· подробнее</span></td><td class="num">${d.esvId || ''}</td><td style="text-align:right"><div class="row" style="justify-content:flex-end">${acts(d)}</div></td></tr>`).join('') || `<tr><td colspan="4" class="empty">${r ? 'Расхождений нет' : 'Запустите сверку'}</td></tr>`}
     </tbody></table></div></section>
-    ${atDrb.length ? `<section class="card"><div class="card-h"><h3>Переданы в ДРБ — ждут решения</h3><span class="muted">${atDrb.length}</span></div><div class="tbl-wrap"><table><tbody>${atDrb.map(d => `<tr><td>${pill(...T[d.type])}</td><td>${esc(d.text)}</td><td class="num">${d.esvId || ''}</td><td>передано ${fmtDT(d.sentAt)}</td></tr>`).join('')}</tbody></table></div></section>` : ''}
-    ${done.length ? `<section class="card"><div class="card-h"><h3>Разобранные</h3></div><div class="tbl-wrap"><table><tbody>${done.map(d => `<tr><td>${pill(...T[d.type])}</td><td>${esc(d.text)}</td><td>${esc(d.resolution)}</td><td>${fmtDT(d.at)}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`;
+    ${atDrb.length ? `<section class="card"><div class="card-h"><h3>Переданы в ДРБ — ждут решения</h3><span class="muted">${atDrb.length}</span></div><div class="tbl-wrap"><table><tbody>${atDrb.map(d => `<tr class="click" data-act="discrview" data-v="${d.id}"><td>${pill(...T[d.type])}</td><td>${esc(d.text)}</td><td class="num">${d.esvId || ''}</td><td>передано ${fmtDT(d.sentAt)}</td></tr>`).join('')}</tbody></table></div></section>` : ''}
+    ${done.length ? `<section class="card"><div class="card-h"><h3>Разобранные</h3></div><div class="tbl-wrap"><table><tbody>${done.map(d => `<tr class="click" data-act="discrview" data-v="${d.id}"><td>${pill(...T[d.type])}</td><td>${esc(d.text)}</td><td>${esc(d.resolution)}</td><td>${fmtDT(d.at)}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`;
 }
 
 /* ----- Журнал ----- */
@@ -2892,14 +2931,16 @@ document.addEventListener('click', e => {
     case 'fault': { const c = call('POST', '/api/v1/demo/esv-events/stream-lost', () => API.simulateFault()); if (c) { toast(`${c.num}: поток недоступен → «Временно отключена»`, 'bad'); render(); } break; }
     case 'resolve': if (call('POST', `/api/v1/incidents/${v}/resolve`, () => API.resolveIncident(v))) { toast('Неисправность закрыта, камера снова подключена'); render(); } break;
     case 'recon': { const r = call('POST', '/api/v1/reconciliation/run', () => API.runRecon()); if (r) { toast(`Сверка выполнена: расхождений ${r.length}`); render(); } break; }
-    case 'ddiscr': {
+    case 'discrview': mDiscr(v); break;
+    case 'discrcam': closeModal(); openCam(v); break;
+    case 'ddiscr': { closeModal();
       const d = S.discr.find(x => x.id === v), o = el.dataset.o;
       if (o === 'assign') { modal('Закрепить камеру из ЕСВ', `<div class="muted">${esc(d.text)} · ${esc(d.esvId)}</div><label class="fld"><span>Организация-владелец</span><select id="f-dorg">${Object.entries(ORGS).map(([k, x]) => `<option value="${k}">${esc(x.name)}</option>`).join('')}</select></label><div class="faint" style="font-size:12px">Камера появится в реестре организации как «импортирована из ЕСВ», владелец получит задачу дозаполнить данные.</div>`, `<button class="btn" data-act="mclose">Отмена</button><button class="btn pri" data-act="m-ddiscr" data-v="${v}" data-o="assign">Закрепить</button>`); break; }
       if (o === 'exception') { modal('Расхождение допустимо', `<div class="muted">${esc(d.text)}</div><label class="fld"><span>Почему допустимо — увидит РЯ</span><textarea id="f-dcomment" placeholder="Например: тестовая камера РЯ, в реестр не вносится"></textarea></label>`, `<button class="btn" data-act="mclose">Отмена</button><button class="btn pri" data-act="m-ddiscr" data-v="${v}" data-o="exception">Сохранить</button>`); break; }
       if (call('POST', `/api/v1/discrepancies/${v}/drb-decision`, () => API.drbDiscr(v, o))) { toast('Решение передано в РЯ'); render(); }
       break; }
     case 'm-ddiscr': if (call('POST', `/api/v1/discrepancies/${v}/drb-decision`, () => API.drbDiscr(v, el.dataset.o, {org: ($('#f-dorg') || {}).value, comment: ($('#f-dcomment') || {}).value || ''}))) { toast('Решение передано в РЯ'); afterChange(); } break;
-    case 'discr': if (call('POST', `/api/v1/discrepancies/${v}/resolve`, () => API.resolveDiscr(v, el.dataset.o))) { toast(el.dataset.o === 'escalate' ? 'Передано в ДРБ — решение появится здесь' : 'Расхождение разобрано'); render(); } break;
+    case 'discr': if (call('POST', `/api/v1/discrepancies/${v}/resolve`, () => API.resolveDiscr(v, el.dataset.o))) { closeModal(); toast(el.dataset.o === 'escalate' ? 'Передано в ДРБ — решение появится здесь' : 'Расхождение разобрано'); render(); } break;
     case 'wizsel': UI.wizSel = +v; render(); break;
     case 'wizdel': case 'wizdelone': case 'wizdelempty': case 'wizclear': {
       const d = S.draft, snap = JSON.parse(JSON.stringify(d.items)), sel = UI.wizSel;
