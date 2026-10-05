@@ -1,0 +1,400 @@
+<meta charset="utf-8">
+<title>Схемы «Единого реестра камер»</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>/* Схемы процесса: одна колонка, крупные фигуры во всю ширину; цвет = участник процесса, одинаково на всех схемах */
+:root{
+  --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --f-disp:"IBM Plex Sans Condensed","Arial Narrow","Segoe UI",sans-serif;
+  --bg:#F2F5F4; --surface:#FFFFFF; --ink:#13262B; --soft:#56696E; --line:#CAD6D4; --lane:#F8FAFA; --lane2:#EEF3F2;
+  --own:#1F6F78; --own-s:#DDEFEF; --drb:#3B57A3; --drb-s:#E3E9F7; --rya:#93600F; --rya-s:#F7EBD5;
+  --sec:#774985; --sec-s:#F1E6F4; --sys:#4E6066; --sys-s:#E6ECEB; --ok:#2E7D4F; --ok-s:#DFF0E5;
+  --bad:#B23E2C; --bad-s:#F8E3DE; --mute:#7A8B8F; --mute-s:#ECEFEE; --plat:#13262B; --plat-fg:#FFFFFF; --plat-sub:#B9CBCC;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1A1C; --surface:#162327; --ink:#E3EDEC; --soft:#9DB1B3; --line:#2D3F43; --lane:#132023; --lane2:#17262A;
+  --own:#62C2C8; --own-s:#16383C; --drb:#93AAEA; --drb-s:#1E2B48; --rya:#E3A84F; --rya-s:#3A2C15;
+  --sec:#C79CD5; --sec-s:#33233B; --sys:#AABBBE; --sys-s:#223032; --ok:#6FCB93; --ok-s:#173525;
+  --bad:#EC8C78; --bad-s:#3D211C; --mute:#8FA2A5; --mute-s:#1E2A2C; --plat:#E3EDEC; --plat-fg:#0F1A1C; --plat-sub:#41575B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1A1C; --surface:#162327; --ink:#E3EDEC; --soft:#9DB1B3; --line:#2D3F43; --lane:#132023; --lane2:#17262A;
+  --own:#62C2C8; --own-s:#16383C; --drb:#93AAEA; --drb-s:#1E2B48; --rya:#E3A84F; --rya-s:#3A2C15;
+  --sec:#C79CD5; --sec-s:#33233B; --sys:#AABBBE; --sys-s:#223032; --ok:#6FCB93; --ok-s:#173525;
+  --bad:#EC8C78; --bad-s:#3D211C; --mute:#8FA2A5; --mute-s:#1E2A2C; --plat:#E3EDEC; --plat-fg:#0F1A1C; --plat-sub:#41575B; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;margin:0}
+.wrap{max-width:1200px;margin:0 auto;padding-inline:20px;padding-block:28px 56px;display:grid;gap:28px}
+header{display:grid;gap:10px}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft)}
+h1{font-family:var(--f-disp);font-size:clamp(28px,4vw,40px);line-height:1.1;margin:0;text-wrap:balance}
+h2{font-family:var(--f-disp);font-size:22px;margin:0;text-wrap:balance}
+.lead{max-width:72ch;margin:0;color:var(--soft)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:13px}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.legend i{width:14px;height:14px;border-radius:4px;border:1.5px solid;display:inline-block}
+nav{display:flex;flex-wrap:wrap;gap:6px}
+nav a{font-size:13px;color:var(--ink);text-decoration:none;border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:4px 12px}
+nav a:hover,nav a:focus-visible{border-color:var(--own);outline:none}
+section{display:grid;gap:12px;scroll-margin-top:16px}
+section > p{margin:0;max-width:78ch}
+figure{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.scroll{overflow-x:auto;padding:18px}
+.scroll svg{width:100%;height:auto;display:block}
+figcaption{border-top:1px solid var(--line);padding:10px 18px;font-size:13px;color:var(--soft)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips span{font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:4px 10px;font-variant-numeric:tabular-nums}
+.chips b{font-weight:600}
+.data{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.data > div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:8px;align-content:start;min-width:0}
+.data h3{margin:0;font-size:15px}
+.data .who{font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.data ul{margin:0;padding-left:18px;display:grid;gap:3px;font-size:14px}
+.data .own-c{color:var(--own)} .data .plat-c{color:var(--soft)}
+.pass{background:var(--plat);color:var(--plat-fg);border-radius:14px;padding:14px 18px;display:grid;gap:6px}
+.pass b{font-family:var(--f-disp);font-size:17px}
+.pass span{font-size:14px;opacity:.85}
+@media (max-width:760px){.data{grid-template-columns:1fr}}
+/* SVG */
+.b{stroke-width:1.5}
+.b.own{fill:var(--own-s);stroke:var(--own)} .b.own2{fill:var(--own-s);stroke:var(--own);stroke-dasharray:5 4}
+.b.drb{fill:var(--drb-s);stroke:var(--drb)} .b.sec{fill:var(--sec-s);stroke:var(--sec)}
+.b.rya{fill:var(--rya-s);stroke:var(--rya)} .b.rya2{fill:var(--rya-s);stroke:var(--rya);stroke-dasharray:5 4}
+.b.sys{fill:var(--sys-s);stroke:var(--sys)} .b.ok{fill:var(--ok-s);stroke:var(--ok)}
+.b.bad2{fill:var(--bad-s);stroke:var(--bad)} .b.mute{fill:var(--mute-s);stroke:var(--mute)}
+.b.plat{fill:var(--plat);stroke:none} .b.plat2{fill:var(--surface);stroke:var(--ink)}
+.t{font-family:var(--f-body);fill:var(--ink)}
+.th{font-size:14px;font-weight:600} .ts,.tl{font-size:12px;fill:var(--soft)}
+.lanet{font-size:13px}
+.own-t,.own2-t{fill:var(--own)} .drb-t{fill:var(--drb)} .sec-t{fill:var(--sec)} .rya-t,.rya2-t{fill:var(--rya)}
+.sys-t{fill:var(--sys)} .ok-t{fill:var(--ok)} .bad2-t,.bad-t{fill:var(--bad)} .mute-t{fill:var(--mute)}
+.plat-t{fill:var(--plat-fg);font-size:15px} .plat-s{fill:var(--plat-sub)} .plat2-t{fill:var(--ink)}
+.ar{fill:none;stroke:var(--soft);stroke-width:1.5}
+.ar.bad{stroke:var(--bad);stroke-dasharray:5 4} .ar.dep{stroke:var(--mute);stroke-dasharray:4 4}
+.dep-t{fill:var(--mute)}
+.ah{fill:var(--soft)} .ahr{fill:var(--bad)}
+.lane{fill:var(--lane)} .lane.alt{fill:var(--lane2)} .grid{stroke:var(--line)}
+</style>
+<div class="wrap">
+<header>
+  <div class="eyebrow">Платформа согласования и учёта камер · ЯНАО</div>
+  <h1>Как камера проходит путь до ЕСВ</h1>
+  <p class="lead">Шесть схем процесса платформы «Единый реестр камер»: кто участвует, в каком порядке, с какими сроками, какие состояния проходит камера и что происходит после подключения. Цвет обозначает участника и одинаков на всех схемах.</p>
+  <div class="legend" aria-label="Обозначения">
+    <span><i style="background:var(--own-s);border-color:var(--own)"></i>Владелец камер</span>
+    <span><i style="background:var(--drb-s);border-color:var(--drb)"></i>ДРБ ЯНАО</span>
+    <span><i style="background:var(--sec-s);border-color:var(--sec)"></i>Силовой блок</span>
+    <span><i style="background:var(--rya-s);border-color:var(--rya)"></i>«Ресурсы Ямала»</span>
+    <span><i style="background:var(--surface);border-color:var(--ink)"></i>Платформа</span>
+    <span><i style="background:var(--sys-s);border-color:var(--sys)"></i>ЕСВ, ЕКС</span>
+  </div>
+  <nav aria-label="Схемы">
+    <a href="#participants">Участники</a><a href="#path">Путь камеры</a><a href="#states">Состояния</a><a href="#data">Данные</a><a href="#ops">Эксплуатация</a><a href="#recon">Сверка с ЕСВ</a>
+  </nav>
+</header>
+
+<section id="participants">
+  <h2>Участники и связи</h2>
+  <p>Все участники работают в одной платформе, а не через переписку и таблицы. Платформа сама берёт адрес из ЕКС и создаёт камеру в ЕСВ через API — данные никто не переносит вручную.</p>
+  <figure><div class="scroll"><svg viewBox="0 0 1000 560" role="img" aria-label="Участники и связи: владелец, ДРБ с силовым блоком и «Ресурсы Ямала» работают через платформу; платформа берёт адреса из ЕКС и создаёт камеры в ЕСВ через API." style="min-width:720px"><defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker><marker id="a1r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ahr"/></marker></defs><rect x="780" y="40" width="200" height="70" rx="10" class="b sec"/>
+<text x="880.0" y="72.0" text-anchor="middle" class="t th sec-t">Силовой блок</text>
+<text x="880.0" y="89.0" text-anchor="middle" class="t ts">УМВД, УФСБ, ФСО, ГУ МЧС</text>
+<rect x="20" y="180" width="200" height="80" rx="10" class="b own"/>
+<text x="120.0" y="217.0" text-anchor="middle" class="t th own-t">Владелец камер</text>
+<text x="120.0" y="234.0" text-anchor="middle" class="t ts">МО, ЕДДС, учреждения</text>
+<rect x="780" y="180" width="200" height="80" rx="10" class="b drb"/>
+<text x="880.0" y="217.0" text-anchor="middle" class="t th drb-t">ДРБ ЯНАО</text>
+<text x="880.0" y="234.0" text-anchor="middle" class="t ts">согласование и контроль</text>
+<rect x="390" y="170" width="220" height="210" rx="14" class="b plat"/>
+<text x="500" y="250" text-anchor="middle" class="t th plat-t">Платформа</text>
+<text x="500" y="272" text-anchor="middle" class="t th plat-t">«Единый реестр камер»</text>
+<text x="500" y="298" text-anchor="middle" class="t ts plat-s">реестр · заявления</text>
+<text x="500" y="314" text-anchor="middle" class="t ts plat-s">сроки · журнал действий</text>
+<rect x="20" y="300" width="200" height="80" rx="10" class="b own2"/>
+<text x="120.0" y="337.0" text-anchor="middle" class="t th own2-t">Исполнитель</text>
+<text x="120.0" y="354.0" text-anchor="middle" class="t ts">техобслуживания</text>
+<rect x="780" y="300" width="200" height="80" rx="10" class="b rya"/>
+<text x="880.0" y="337.0" text-anchor="middle" class="t th rya-t">«Ресурсы Ямала»</text>
+<text x="880.0" y="354.0" text-anchor="middle" class="t ts">оператор ЕСВ</text>
+<rect x="300" y="480" width="180" height="64" rx="10" class="b sys"/>
+<text x="390.0" y="509.0" text-anchor="middle" class="t th sys-t">ЕКС ЯНАО</text>
+<text x="390.0" y="526.0" text-anchor="middle" class="t ts">подложка, адресный план</text>
+<rect x="520" y="480" width="180" height="64" rx="10" class="b sys"/>
+<text x="610.0" y="509.0" text-anchor="middle" class="t th sys-t">ЕСВ (NETRIS)</text>
+<text x="610.0" y="526.0" text-anchor="middle" class="t ts">видеосистема региона</text>
+<polyline points="220,205 390,205" class="ar " marker-end="url(#a1)"/>
+<text x="305.0" y="197" text-anchor="middle" class="t tl -t">заявления, данные</text>
+<polyline points="390,235 220,235" class="ar " marker-end="url(#a1)"/>
+<text x="305.0" y="252" text-anchor="middle" class="t tl -t">решения, задачи</text>
+<polyline points="780,205 610,205" class="ar " marker-end="url(#a1)"/>
+<text x="695.0" y="197" text-anchor="middle" class="t tl -t">решения по камерам</text>
+<polyline points="610,235 780,235" class="ar " marker-end="url(#a1)"/>
+<text x="695.0" y="252" text-anchor="middle" class="t tl -t">очередь, сроки</text>
+<polyline points="860,180 860,110" class="ar " marker-end="url(#a1)"/>
+<text x="852" y="150" text-anchor="end" class="t tl -t">запрос</text>
+<polyline points="910,110 910,180" class="ar " marker-end="url(#a1)"/>
+<text x="918" y="150" text-anchor="start" class="t tl -t">ответ</text>
+<polyline points="780,325 610,325" class="ar " marker-end="url(#a1)"/>
+<text x="695.0" y="317" text-anchor="middle" class="t tl -t">соглашение, проверка</text>
+<polyline points="610,355 780,355" class="ar " marker-end="url(#a1)"/>
+<text x="695.0" y="372" text-anchor="middle" class="t tl -t">очередь подключения</text>
+<polyline points="390,325 220,325" class="ar " marker-end="url(#a1)"/>
+<text x="305.0" y="317" text-anchor="middle" class="t tl -t">заявка о неисправности</text>
+<polyline points="220,355 390,355" class="ar " marker-end="url(#a1)"/>
+<text x="305.0" y="372" text-anchor="middle" class="t tl -t">восстановлено</text>
+<polyline points="410,480 410,380" class="ar " marker-end="url(#a1)"/>
+<text x="402" y="425" text-anchor="end" class="t tl -t">адрес и ФИАС</text>
+<text x="402" y="439" text-anchor="end" class="t tl -t">по точке</text>
+<polyline points="570,380 570,480" class="ar " marker-end="url(#a1)"/>
+<text x="562" y="425" text-anchor="end" class="t tl -t">создать,</text>
+<text x="562" y="439" text-anchor="end" class="t tl -t">изменить (API)</text>
+<polyline points="650,480 650,380" class="ar " marker-end="url(#a1)"/>
+<text x="658" y="425" text-anchor="start" class="t tl -t">выгрузка,</text>
+<text x="658" y="439" text-anchor="start" class="t tl -t">события потока</text></svg></div>
+  <figcaption>Силовой блок ДРБ запрашивает, когда у камеры назначение «общественная безопасность». Исполнитель техобслуживания — своя служба владельца или подрядчик по контракту.</figcaption></figure>
+</section>
+
+<section id="path">
+  <h2>Путь камеры: от заявления до ЕСВ</h2>
+  <div class="chips"><span><b>10 р.д.</b> — решение ДРБ</span><span><b>6 мес.</b> — действует одобрение</span><span><b>5 р.д.</b> — подключение у «Ресурсов Ямала»</span><span><b>до 50</b> камер в одном заявлении</span></div>
+  <figure><div class="scroll"><svg viewBox="0 0 1250 560" role="img" aria-label="Путь камеры по участникам: 1 заявление владельца, проверки платформы, 2 решение ДРБ за 10 рабочих дней с возвратом на доработку, 3 монтаж и данные с проверкой потока, 4 соглашение и 5 проверка у «Ресурсов Ямала» за 5 рабочих дней, 6 камера в ЕСВ." style="min-width:900px"><defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker><marker id="a2r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ahr"/></marker></defs><rect x="0" y="0" width="1250" height="112" class="lane "/>
+<text x="14" y="60.0" class="t th own-t lanet">Владелец</text>
+<rect x="0" y="112" width="1250" height="112" class="lane alt"/>
+<text x="14" y="172.0" class="t th plat2-t lanet">Платформа</text>
+<rect x="0" y="224" width="1250" height="112" class="lane "/>
+<text x="14" y="284.0" class="t th drb-t lanet">ДРБ + силовой блок</text>
+<rect x="0" y="336" width="1250" height="112" class="lane alt"/>
+<text x="14" y="396.0" class="t th rya-t lanet">«Ресурсы Ямала»</text>
+<rect x="0" y="448" width="1250" height="112" class="lane "/>
+<text x="14" y="508.0" class="t th sys-t lanet">ЕСВ</text>
+<line x1="122" y1="0" x2="122" y2="560" class="grid"/>
+<rect x="140" y="23.0" width="190" height="66" rx="10" class="b own"/>
+<text x="235.0" y="45.5" text-anchor="middle" class="t th own-t"><tspan class="n">1 · </tspan>Заявление</text>
+<text x="235.0" y="62.5" text-anchor="middle" class="t ts">точки, назначение,</text>
+<text x="235.0" y="77.5" text-anchor="middle" class="t ts">основание, кадр</text>
+<rect x="140" y="135.0" width="190" height="66" rx="10" class="b plat2"/>
+<text x="235.0" y="157.5" text-anchor="middle" class="t th plat2-t">Проверки</text>
+<text x="235.0" y="174.5" text-anchor="middle" class="t ts">адрес и ФИАС из ЕКС,</text>
+<text x="235.0" y="189.5" text-anchor="middle" class="t ts">перекрытия, полнота</text>
+<rect x="365" y="247.0" width="190" height="66" rx="10" class="b drb"/>
+<text x="460.0" y="269.5" text-anchor="middle" class="t th drb-t"><tspan class="n">2 · </tspan>Решение ДРБ</text>
+<text x="460.0" y="286.5" text-anchor="middle" class="t ts">по каждой камере;</text>
+<text x="460.0" y="301.5" text-anchor="middle" class="t ts">силовой блок — по назначению</text>
+<rect x="590" y="23.0" width="190" height="66" rx="10" class="b own"/>
+<text x="685.0" y="45.5" text-anchor="middle" class="t th own-t"><tspan class="n">3 · </tspan>Монтаж и данные</text>
+<text x="685.0" y="62.5" text-anchor="middle" class="t ts">модель, IP, логин,</text>
+<text x="685.0" y="77.5" text-anchor="middle" class="t ts">пароль, ссылка на поток</text>
+<rect x="590" y="135.0" width="190" height="66" rx="10" class="b plat2"/>
+<text x="685.0" y="157.5" text-anchor="middle" class="t th plat2-t">esvcheck сразу</text>
+<text x="685.0" y="174.5" text-anchor="middle" class="t ts">поток открывается?</text>
+<text x="685.0" y="189.5" text-anchor="middle" class="t ts">параметры ЕСВ</text>
+<rect x="815" y="359.0" width="190" height="66" rx="10" class="b rya"/>
+<text x="910.0" y="381.5" text-anchor="middle" class="t th rya-t"><tspan class="n">4 · </tspan>Соглашение</text>
+<text x="910.0" y="398.5" text-anchor="middle" class="t ts">один раз на организацию;</text>
+<text x="910.0" y="413.5" text-anchor="middle" class="t ts">паспорт — из карточки</text>
+<rect x="1040" y="359.0" width="190" height="66" rx="10" class="b rya"/>
+<text x="1135.0" y="381.5" text-anchor="middle" class="t th rya-t"><tspan class="n">5 · </tspan>Проверка, добавление</text>
+<text x="1135.0" y="398.5" text-anchor="middle" class="t ts">поток, канал, запись →</text>
+<text x="1135.0" y="413.5" text-anchor="middle" class="t ts">«Добавить в ЕСВ»</text>
+<rect x="1040" y="471.0" width="190" height="66" rx="10" class="b sys"/>
+<text x="1135.0" y="493.5" text-anchor="middle" class="t th sys-t"><tspan class="n">6 · </tspan>Камера в ЕСВ</text>
+<text x="1135.0" y="510.5" text-anchor="middle" class="t ts">создана через API,</text>
+<text x="1135.0" y="525.5" text-anchor="middle" class="t ts">ID записан в реестр</text>
+<polyline points="235.0,89.0 235.0,135.0" class="ar " marker-end="url(#a2)"/>
+<text x="243.0" y="120.0" text-anchor="start" class="t tl -t">подать</text>
+<polyline points="330,168.0 485,168.0 485,247.0" class="ar " marker-end="url(#a2)"/>
+<text x="493" y="208.0" text-anchor="start" class="t tl -t">в очередь ДРБ · 10 р.д.</text>
+<polyline points="365,290.0 347.5,290.0 347.5,37.0 330,37.0" class="ar bad" marker-end="url(#a2r)"/>
+<text x="353.5" y="136" class="t tl bad-t">на доработку</text>
+<polyline points="555,280.0 572.5,280.0 572.5,56.0 590,56.0" class="ar " marker-end="url(#a2)"/>
+<text x="580.5" y="302.0" text-anchor="start" class="t tl -t">одобрено ·</text>
+<text x="580.5" y="316.0" text-anchor="start" class="t tl -t">6 мес. на монтаж</text>
+<polyline points="685.0,89.0 685.0,135.0" class="ar " marker-end="url(#a2)"/>
+<text x="693.0" y="120.0" text-anchor="start" class="t tl -t">сохранить</text>
+<polyline points="780,168.0 875,168.0 875,359.0" class="ar " marker-end="url(#a2)"/>
+<text x="883" y="254" text-anchor="start" class="t tl -t">данные приняты ·</text>
+<text x="883" y="268" text-anchor="start" class="t tl -t">5 р.д. на подключение</text>
+<polyline points="1005,392.0 1040,392.0" class="ar " marker-end="url(#a2)"/>
+<polyline points="1135.0,425.0 1135.0,471.0" class="ar " marker-end="url(#a2)"/>
+<text x="1143.0" y="456.0" text-anchor="start" class="t tl -t">API</text></svg></div>
+  <figcaption>Владелец участвует дважды: подаёт заявление и вносит данные после монтажа. Решение ДРБ принимается по каждой камере отдельно; возвращённую на доработку позицию владелец исправляет и подаёт повторно. Если в данных ошибка, «Ресурсы Ямала» возвращают камеру владельцу с комментарием.</figcaption></figure>
+</section>
+
+<section id="states">
+  <h2>Состояния камеры</h2>
+  <p>У камеры две независимые оси: где она физически (размещение) и подключена ли к ЕСВ. Из них складывается то, что видно в реестре: <b>кандидат</b> — ещё не в ЕСВ, <b>рабочая</b> — смонтирована и подключена, <b>неисправна</b> — временно отключена, <b>архив</b> — выведена или отказано. Камеры не удаляются, а уходят в архив с историей.</p>
+  <figure><div class="scroll"><svg viewBox="0 0 1300 360" role="img" aria-label="Две оси состояния камеры: размещение (планируется, одобрена, смонтирована, выведена или отказано) и подключение к ЕСВ (не подключена, соглашение, подключена, временно отключена, отключена). Подключение начинается только после монтажа." style="min-width:936px"><defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker><marker id="a3r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ahr"/></marker></defs><text x="10" y="77" class="t th lanet">Размещение</text>
+<text x="10" y="260" class="t th lanet">Подключение</text><text x="10" y="276" class="t th lanet">к ЕСВ</text>
+<rect x="150" y="50" width="170" height="46" rx="23" class="b own"/>
+<text x="235.0" y="77.5" text-anchor="middle" class="t th own-t">Планируется</text>
+<rect x="390" y="50" width="170" height="46" rx="23" class="b drb"/>
+<text x="475.0" y="77.5" text-anchor="middle" class="t th drb-t">Одобрена</text>
+<rect x="630" y="50" width="170" height="46" rx="23" class="b own"/>
+<text x="715.0" y="77.5" text-anchor="middle" class="t th own-t">Смонтирована</text>
+<rect x="1110" y="50" width="170" height="46" rx="23" class="b mute"/>
+<text x="1195.0" y="77.5" text-anchor="middle" class="t th mute-t">Выведена</text>
+<rect x="150" y="150" width="170" height="46" rx="23" class="b mute"/>
+<text x="235.0" y="177.5" text-anchor="middle" class="t th mute-t">Отказано / отозвана</text>
+<rect x="150" y="240" width="170" height="46" rx="23" class="b mute"/>
+<text x="235.0" y="267.5" text-anchor="middle" class="t th mute-t">Не подключена</text>
+<rect x="390" y="240" width="170" height="46" rx="23" class="b rya"/>
+<text x="475.0" y="267.5" text-anchor="middle" class="t th rya-t">Соглашение</text>
+<rect x="630" y="240" width="170" height="46" rx="23" class="b ok"/>
+<text x="715.0" y="267.5" text-anchor="middle" class="t th ok-t">Подключена</text>
+<rect x="870" y="240" width="170" height="46" rx="23" class="b bad2"/>
+<text x="955.0" y="267.5" text-anchor="middle" class="t th bad2-t">Временно отключена</text>
+<rect x="1110" y="240" width="170" height="46" rx="23" class="b mute"/>
+<text x="1195.0" y="267.5" text-anchor="middle" class="t th mute-t">Отключена</text>
+<polyline points="320,73.0 390,73.0" class="ar " marker-end="url(#a3)"/>
+<text x="355.0" y="40" text-anchor="middle" class="t tl -t">ДРБ одобрил</text>
+<polyline points="560,73.0 630,73.0" class="ar " marker-end="url(#a3)"/>
+<text x="595.0" y="40" text-anchor="middle" class="t tl -t">данные после монтажа</text>
+<polyline points="800,73.0 1110,73.0" class="ar " marker-end="url(#a3)"/>
+<text x="955.0" y="40" text-anchor="middle" class="t tl -t">вывод одобрен ДРБ</text>
+<polyline points="235,96 235,150" class="ar " marker-end="url(#a3)"/>
+<text x="243" y="120" text-anchor="start" class="t tl -t">отказ ДРБ</text>
+<text x="243" y="134" text-anchor="start" class="t tl -t">или отзыв</text>
+<polyline points="320,263.0 390,263.0" class="ar " marker-end="url(#a3)"/>
+<text x="355.0" y="230" text-anchor="middle" class="t tl -t">РЯ: в соглашение</text>
+<polyline points="560,263.0 630,263.0" class="ar " marker-end="url(#a3)"/>
+<text x="595.0" y="230" text-anchor="middle" class="t tl -t">«Добавить в ЕСВ»</text>
+<polyline points="800,255.0 870,255.0" class="ar " marker-end="url(#a3)"/>
+<text x="835.0" y="230" text-anchor="middle" class="t tl -t">нет потока &gt; 60 мин</text>
+<polyline points="870,271.0 800,271.0" class="ar " marker-end="url(#a3)"/>
+<text x="835.0" y="304" text-anchor="middle" class="t tl -t">восстановлено</text>
+<polyline points="690,286 690,336 1195.0,336 1195.0,286" class="ar " marker-end="url(#a3)"/>
+<text x="1075.0" y="330" text-anchor="middle" class="t tl -t">РЯ отключил по одобренному выводу</text>
+<polyline points="670,96 510,240" class="ar dep" marker-end="url(#a3)"/>
+<text x="595" y="172.0" text-anchor="start" class="t tl dep-t">только после монтажа</text>
+<line x1="1195.0" y1="96" x2="1195.0" y2="240" class="ar dep"/>
+<text x="1203.0" y="172.0" class="t tl dep-t">вместе</text></svg></div>
+  <figcaption>Пунктир — условия между осями: подключение начинается только после монтажа, а вывод и отключение происходят вместе.</figcaption></figure>
+</section>
+
+<section id="data">
+  <h2>Какие данные и когда</h2>
+  <p>Данные вносятся в два приёма: до монтажа — только место и смысл камеры, после монтажа — техническое. Всё, что можно получить автоматически, платформа берёт сама.</p>
+  <div class="data">
+    <div><div class="who own-c">Владелец · заявление</div><h3>До монтажа</h3><ul><li>точка на карте, азимут и угол обзора</li><li>наименование</li><li>тип камеры (классификатор ЕСВ)</li><li>основание установки и документ</li><li>место установки: опора, стена, крыша</li><li>назначение и задача: обзор, лица, ГРЗ</li><li>эталонный кадр</li></ul></div>
+    <div><div class="who own-c">Владелец · после монтажа</div><h3>Для подключения</h3><ul><li>модель</li><li>IP-адрес, логин и пароль</li><li>ссылка на видеопоток</li><li>фактический азимут и угол</li><li>описание: где стоит и что видит</li><li>техобслуживание: своими силами или по контракту</li></ul></div>
+    <div><div class="who plat-c">Платформа · автоматически</div><h3>Без ручного ввода</h3><ul><li>адрес и код ФИАС из ЕКС по точке</li><li>проверка перекрытий с соседними камерами</li><li>проверка потока через esvcheck</li><li>серийный номер и прошивка по ONVIF</li><li>паспорт СВН и приложение № 1</li><li>ID камеры из ЕСВ</li></ul></div>
+  </div>
+  <div class="pass"><b>Паспорт СВН = приложение № 1 к соглашению = запись в ЕСВ</b><span>Один набор из 10 полей: номер, адрес, координаты, азимут и угол, тип размещения, модель, серийный номер, прошивка, PTZ, описание. Пароль хранится в зашифрованном виде и в паспорт не входит.</span></div>
+</section>
+
+<section id="ops">
+  <h2>Эксплуатация</h2>
+  <p>После подключения камера меняется только через заявления, а неисправность обрабатывается без участия людей до момента ремонта.</p>
+  <figure><div class="scroll"><svg viewBox="0 0 990 318" role="img" aria-label="Эксплуатация: изменение камеры проходит через ДРБ и обновляет ЕСВ через API; вывод одобряет ДРБ, отключают «Ресурсы Ямала»; при пропаже потока заявка автоматически уходит исполнителю техобслуживания." style="min-width:712px"><defs><marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker><marker id="a4r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ahr"/></marker></defs><text x="10" y="53.0" class="t th lanet">Изменение</text>
+<rect x="150" y="18" width="180" height="62" rx="10" class="b own"/>
+<text x="240.0" y="38.5" text-anchor="middle" class="t th own-t">Владелец</text>
+<text x="240.0" y="55.5" text-anchor="middle" class="t ts">«Заявление</text>
+<text x="240.0" y="70.5" text-anchor="middle" class="t ts">на изменение»</text>
+<rect x="365" y="18" width="180" height="62" rx="10" class="b drb"/>
+<text x="455.0" y="38.5" text-anchor="middle" class="t th drb-t">ДРБ</text>
+<text x="455.0" y="55.5" text-anchor="middle" class="t ts">одобряет</text>
+<text x="455.0" y="70.5" text-anchor="middle" class="t ts">или отклоняет</text>
+<polyline points="330,49.0 365,49.0" class="ar " marker-end="url(#a4)"/>
+<rect x="580" y="18" width="180" height="62" rx="10" class="b plat2"/>
+<text x="670.0" y="38.5" text-anchor="middle" class="t th plat2-t">Платформа</text>
+<text x="670.0" y="55.5" text-anchor="middle" class="t ts">обновляет запись</text>
+<text x="670.0" y="70.5" text-anchor="middle" class="t ts">в ЕСВ через API</text>
+<polyline points="545,49.0 580,49.0" class="ar " marker-end="url(#a4)"/>
+<rect x="795" y="18" width="180" height="62" rx="10" class="b sys"/>
+<text x="885.0" y="38.5" text-anchor="middle" class="t th sys-t">ЕСВ</text>
+<text x="885.0" y="55.5" text-anchor="middle" class="t ts">новый азимут,</text>
+<text x="885.0" y="70.5" text-anchor="middle" class="t ts">название, назначение</text>
+<polyline points="760,49.0 795,49.0" class="ar " marker-end="url(#a4)"/>
+<text x="10" y="153.0" class="t th lanet">Вывод</text>
+<rect x="150" y="118" width="180" height="62" rx="10" class="b own"/>
+<text x="240.0" y="138.5" text-anchor="middle" class="t th own-t">Владелец или ДРБ</text>
+<text x="240.0" y="155.5" text-anchor="middle" class="t ts">«Заявление</text>
+<text x="240.0" y="170.5" text-anchor="middle" class="t ts">на вывод»</text>
+<rect x="365" y="118" width="180" height="62" rx="10" class="b drb"/>
+<text x="455.0" y="138.5" text-anchor="middle" class="t th drb-t">ДРБ</text>
+<text x="455.0" y="155.5" text-anchor="middle" class="t ts">«Одобрить вывод»</text>
+<text x="455.0" y="170.5" text-anchor="middle" class="t ts">или «Не удалять»</text>
+<polyline points="330,149.0 365,149.0" class="ar " marker-end="url(#a4)"/>
+<rect x="580" y="118" width="180" height="62" rx="10" class="b rya"/>
+<text x="670.0" y="138.5" text-anchor="middle" class="t th rya-t">«Ресурсы Ямала»</text>
+<text x="670.0" y="155.5" text-anchor="middle" class="t ts">отключают</text>
+<text x="670.0" y="170.5" text-anchor="middle" class="t ts">от ЕСВ</text>
+<polyline points="545,149.0 580,149.0" class="ar " marker-end="url(#a4)"/>
+<rect x="795" y="118" width="180" height="62" rx="10" class="b mute"/>
+<text x="885.0" y="138.5" text-anchor="middle" class="t th mute-t">Реестр</text>
+<text x="885.0" y="155.5" text-anchor="middle" class="t ts">камера в архиве,</text>
+<text x="885.0" y="170.5" text-anchor="middle" class="t ts">история сохранена</text>
+<polyline points="760,149.0 795,149.0" class="ar " marker-end="url(#a4)"/>
+<text x="10" y="253.0" class="t th lanet">Неисправность</text>
+<rect x="150" y="218" width="180" height="62" rx="10" class="b sys"/>
+<text x="240.0" y="238.5" text-anchor="middle" class="t th sys-t">ЕСВ</text>
+<text x="240.0" y="255.5" text-anchor="middle" class="t ts">поток пропал</text>
+<text x="240.0" y="270.5" text-anchor="middle" class="t ts">дольше 60 минут</text>
+<rect x="365" y="218" width="180" height="62" rx="10" class="b plat2"/>
+<text x="455.0" y="238.5" text-anchor="middle" class="t th plat2-t">Платформа</text>
+<text x="455.0" y="255.5" text-anchor="middle" class="t ts">«временно отключена»,</text>
+<text x="455.0" y="270.5" text-anchor="middle" class="t ts">заявка по e-mail</text>
+<polyline points="330,249.0 365,249.0" class="ar " marker-end="url(#a4)"/>
+<rect x="580" y="218" width="180" height="62" rx="10" class="b own2"/>
+<text x="670.0" y="238.5" text-anchor="middle" class="t th own2-t">Исполнитель</text>
+<text x="670.0" y="255.5" text-anchor="middle" class="t ts">своя служба или</text>
+<text x="670.0" y="270.5" text-anchor="middle" class="t ts">подрядчик по контракту</text>
+<polyline points="545,249.0 580,249.0" class="ar " marker-end="url(#a4)"/>
+<rect x="795" y="218" width="180" height="62" rx="10" class="b ok"/>
+<text x="885.0" y="238.5" text-anchor="middle" class="t th ok-t">Камера</text>
+<text x="885.0" y="255.5" text-anchor="middle" class="t ts">поток восстановлен →</text>
+<text x="885.0" y="270.5" text-anchor="middle" class="t ts">«подключена»</text>
+<polyline points="760,249.0 795,249.0" class="ar " marker-end="url(#a4)"/></svg></div>
+  <figcaption>Перенос камеры в другое место — это вывод старой и новое заявление на размещение. Подписчики камеры узнают о заявлении на вывод сразу при подаче.</figcaption></figure>
+</section>
+
+<section id="recon">
+  <h2>Сверка реестра с ЕСВ</h2>
+  <p>Реестр — источник истины. Если ЕСВ расходится с реестром, ЕСВ приводят к реестру; спорные случаи «Ресурсы Ямала» передают на решение ДРБ.</p>
+  <figure><div class="scroll"><svg viewBox="0 0 1140 300" role="img" aria-label="Сверка с ЕСВ: выгрузка сравнивается с реестром, расхождения трёх видов разбирает РЯ, неучтённые и пропавшие камеры при необходимости решает ДРБ." style="min-width:820px"><defs><marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker><marker id="a5r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ahr"/></marker></defs><rect x="20" y="128" width="160" height="64" rx="10" class="b sys"/>
+<text x="100.0" y="157.0" text-anchor="middle" class="t th sys-t">Выгрузка ЕСВ</text>
+<text x="100.0" y="174.0" text-anchor="middle" class="t ts">ежесуточно по API</text>
+<rect x="220" y="128" width="160" height="64" rx="10" class="b rya"/>
+<text x="300.0" y="157.0" text-anchor="middle" class="t th rya-t">Сверка</text>
+<text x="300.0" y="174.0" text-anchor="middle" class="t ts">реестр ⇄ ЕСВ</text>
+<rect x="430" y="30" width="180" height="64" rx="10" class="b bad2"/>
+<text x="520.0" y="59.0" text-anchor="middle" class="t th bad2-t">Неучтённая камера</text>
+<text x="520.0" y="76.0" text-anchor="middle" class="t ts">есть в ЕСВ, нет в реестре</text>
+<polyline points="380,160 405,160 405,62 430,62" class="ar " marker-end="url(#a5)"/>
+<rect x="430" y="128" width="180" height="64" rx="10" class="b rya2"/>
+<text x="520.0" y="157.0" text-anchor="middle" class="t th rya2-t">Нет в ЕСВ</text>
+<text x="520.0" y="174.0" text-anchor="middle" class="t ts">в реестре подключена</text>
+<polyline points="380,160 405,160 405,160 430,160" class="ar " marker-end="url(#a5)"/>
+<rect x="430" y="226" width="180" height="64" rx="10" class="b rya2"/>
+<text x="520.0" y="255.0" text-anchor="middle" class="t th rya2-t">Данные не совпадают</text>
+<text x="520.0" y="272.0" text-anchor="middle" class="t ts">координаты, название</text>
+<polyline points="380,160 405,160 405,258 430,258" class="ar " marker-end="url(#a5)"/>
+<polyline points="180,160 220,160" class="ar " marker-end="url(#a5)"/>
+<rect x="650" y="30" width="200" height="64" rx="10" class="b rya"/>
+<text x="750.0" y="51.5" text-anchor="middle" class="t th rya-t">Решение РЯ</text>
+<text x="750.0" y="68.5" text-anchor="middle" class="t ts">«Завести в реестр»</text>
+<text x="750.0" y="83.5" text-anchor="middle" class="t ts">или «Передать в ДРБ»</text>
+<polyline points="610,62 650,62" class="ar " marker-end="url(#a5)"/>
+<rect x="650" y="128" width="200" height="64" rx="10" class="b rya"/>
+<text x="750.0" y="149.5" text-anchor="middle" class="t th rya-t">Решение РЯ</text>
+<text x="750.0" y="166.5" text-anchor="middle" class="t ts">«Передать в ДРБ»</text>
+<text x="750.0" y="181.5" text-anchor="middle" class="t ts">или «Исключение»</text>
+<polyline points="610,160 650,160" class="ar " marker-end="url(#a5)"/>
+<rect x="650" y="226" width="200" height="64" rx="10" class="b rya"/>
+<text x="750.0" y="247.5" text-anchor="middle" class="t th rya-t">Решение РЯ</text>
+<text x="750.0" y="264.5" text-anchor="middle" class="t ts">«Исправить ЕСВ</text>
+<text x="750.0" y="279.5" text-anchor="middle" class="t ts">по реестру» или «Исключение»</text>
+<polyline points="610,258 650,258" class="ar " marker-end="url(#a5)"/>
+<rect x="935" y="30" width="190" height="162" rx="10" class="b drb"/>
+<text x="1030.0" y="78.0" text-anchor="middle" class="t th drb-t">Решение ДРБ</text>
+<text x="1030.0" y="95.0" text-anchor="middle" class="t ts">закрепить за организацией</text>
+<text x="1030.0" y="110.0" text-anchor="middle" class="t ts">→ владелец дозаполняет;</text>
+<text x="1030.0" y="125.0" text-anchor="middle" class="t ts">отключить от ЕСВ;</text>
+<text x="1030.0" y="140.0" text-anchor="middle" class="t ts">вернуть на подключение;</text>
+<text x="1030.0" y="155.0" text-anchor="middle" class="t ts">в архив; допустимо</text>
+<polyline points="850,62 935,62" class="ar " marker-end="url(#a5)"/>
+<text x="892" y="54" text-anchor="middle" class="t tl -t">передано</text>
+<polyline points="850,160 935,160" class="ar " marker-end="url(#a5)"/>
+<text x="892" y="152" text-anchor="middle" class="t tl -t">передано</text></svg></div>
+  <figcaption>По каждому расхождению видно, что о камере знает ЕСВ, где она на карте и какие камеры реестра стоят рядом, — так проще отличить неучтённую камеру от дубля с другим ID.</figcaption></figure>
+</section>
+</div>

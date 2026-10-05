@@ -88,6 +88,7 @@ http.createServer(async (req, res) => {
     }
     if (url.startsWith('/api/')) return await api(req, res, url);
     if (url === '/lifecycle') return send(res, 301, '', 'text/plain', {Location: '/docs/lifecycle.html'});
+    if (url === '/schemes') return send(res, 301, '', 'text/plain', {Location: '/docs/schemes.html'});
     const f = files.get(url === '/index.html' ? '/' : url);
     if (!f || !['GET', 'HEAD'].includes(req.method)) return send(res, 404, 'Не найдено', 'text/plain; charset=utf-8');
     const gz = /\bgzip\b/.test(req.headers['accept-encoding'] || '');
