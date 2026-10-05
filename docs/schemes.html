@@ -81,6 +81,12 @@ figcaption{border-top:1px solid var(--line);padding:10px 18px;font-size:13px;col
 .qn{font-weight:700;fill:var(--ink)}
 .dtx{fill:var(--ink)}
 .scroll svg.tall{max-width:780px;margin:0 auto}
+
+.frame{fill:none;stroke:var(--soft);stroke-width:1;stroke-dasharray:3 3}
+.ftab{fill:var(--lane2);stroke:var(--soft);stroke-width:1}
+.ftxt{font-weight:600;fill:var(--ink)}
+.note{fill:var(--rya-s);stroke:var(--rya);stroke-width:1}
+.notet{fill:var(--ink)}
 </style>
 <div class="wrap">
 <header>
@@ -96,7 +102,7 @@ figcaption{border-top:1px solid var(--line);padding:10px 18px;font-size:13px;col
     <span><i style="background:var(--sys-s);border-color:var(--sys)"></i>ЕСВ</span>
   </div>
   <nav aria-label="Схемы">
-    <a href="#flow">Блок-схема</a><a href="#sequence">Взаимодействие</a><a href="#participants">Участники</a><a href="#path">Путь камеры</a><a href="#states">Состояния</a><a href="#data">Данные</a><a href="#ops">Эксплуатация</a><a href="#recon">Сверка с ЕСВ</a>
+    <a href="#flow">Блок-схема</a><a href="#sequence">Взаимодействие</a><a href="#participants">Участники</a><a href="#path">Путь камеры</a><a href="#states">Состояния</a><a href="#data">Данные</a><a href="#ops">Эксплуатация</a><a href="#fault">Неисправность</a><a href="#recon">Сверка с ЕСВ</a>
   </nav>
 </header>
 
@@ -516,6 +522,91 @@ figcaption{border-top:1px solid var(--line);padding:10px 18px;font-size:13px;col
 <text x="885.0" y="270.5" text-anchor="middle" class="t ts">«подключена»</text>
 <polyline points="760,249.0 795,249.0" class="ar " marker-end="url(#a4)"/></svg></div>
   <figcaption>Перенос камеры в другое место — это вывод старой и новое заявление на размещение. Подписчики камеры узнают о заявлении на вывод сразу при подаче.</figcaption></figure>
+</section>
+
+<section id="fault">
+  <h2>Неисправность: уведомление исполнителю</h2>
+  <p>Два источника — сеть и качество кадра. Исполнителя и срок платформа берёт из карточки камеры, а не подбирает по адресу. Исполнитель отмечает «Выполнено», а закрывает заявку платформа — только после того, как сама убедится, что камера снова работает.</p>
+  <figure><div class="scroll"><svg viewBox="0 0 1211.0 1332" role="img" aria-label="Уведомление исполнителю о неисправности: мониторинг сети и аналитика кадра сообщают платформе, платформа берёт исполнителя и срок из карточки камеры, отправляет заявку, после отметки «Выполнено» сама проверяет доступность и кадр, закрывает заявку или возвращает исполнителю, при просрочке эскалирует владельцу и ДРБ." style="min-width:871px"><defs><marker id="q2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker><marker id="q2r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ahr"/></marker></defs><line x1="80" y1="64" x2="80" y2="1326" class="life"/>
+<rect x="5.0" y="8" width="150" height="44" rx="10" class="b sys"/>
+<text x="80.0" y="34.5" text-anchor="middle" class="t th sys-t">Камера</text>
+<line x1="250" y1="64" x2="250" y2="1326" class="life"/>
+<rect x="175.0" y="8" width="150" height="56" rx="10" class="b sys"/>
+<text x="250.0" y="33.0" text-anchor="middle" class="t th sys-t">Мониторинг сети</text>
+<text x="250.0" y="50.0" text-anchor="middle" class="t ts">ping каждые 30 с</text>
+<line x1="420" y1="64" x2="420" y2="1326" class="life"/>
+<rect x="345.0" y="8" width="150" height="56" rx="10" class="b sys"/>
+<text x="420.0" y="33.0" text-anchor="middle" class="t th sys-t">Аналитика кадра</text>
+<text x="420.0" y="50.0" text-anchor="middle" class="t ts">сервис ЕСВ</text>
+<line x1="600" y1="64" x2="600" y2="1326" class="life"/>
+<rect x="525.0" y="8" width="150" height="44" rx="10" class="b plat2"/>
+<text x="600.0" y="34.5" text-anchor="middle" class="t th plat2-t">Платформа</text>
+<line x1="790" y1="64" x2="790" y2="1326" class="life"/>
+<rect x="715.0" y="8" width="150" height="56" rx="10" class="b own2"/>
+<text x="790.0" y="33.0" text-anchor="middle" class="t th own2-t">Исполнитель</text>
+<text x="790.0" y="50.0" text-anchor="middle" class="t ts">из карточки камеры</text>
+<line x1="960" y1="64" x2="960" y2="1326" class="life"/>
+<rect x="885.0" y="8" width="150" height="44" rx="10" class="b own"/>
+<text x="960.0" y="34.5" text-anchor="middle" class="t th own-t">Владелец</text>
+<line x1="1120" y1="64" x2="1120" y2="1326" class="life"/>
+<rect x="1045.0" y="8" width="150" height="44" rx="10" class="b drb"/>
+<text x="1120.0" y="34.5" text-anchor="middle" class="t th drb-t">ДРБ</text>
+<rect x="14" y="112" width="302" height="110" rx="6" class="frame"/>
+<path d="M14,112 h165.79999999999998 v14 l-8,8 h-157.79999999999998 z" class="ftab"/><text x="21" y="127" class="t tl ftxt">цикл · каждые 30 секунд</text>
+<rect x="14" y="332" width="472" height="110" rx="6" class="frame"/>
+<path d="M14,332 h126.19999999999999 v14 l-8,8 h-118.19999999999999 z" class="ftab"/><text x="21" y="347" class="t tl ftxt">цикл · непрерывно</text>
+<rect x="534" y="888" width="492" height="154" rx="6" class="frame"/>
+<path d="M534,888 h159.2 v14 l-8,8 h-151.2 z" class="ftab"/><text x="541" y="903" class="t tl ftxt">если проверка пройдена</text>
+<rect x="534" y="1076" width="322" height="74" rx="6" class="frame"/>
+<path d="M534,1076 h119.6 v14 l-8,8 h-111.6 z" class="ftab"/><text x="541" y="1091" class="t tl ftxt">если не пройдена</text>
+<rect x="534" y="1184" width="652" height="110" rx="6" class="frame"/>
+<path d="M534,1184 h113.0 v14 l-8,8 h-105.0 z" class="ftab"/><text x="541" y="1199" class="t tl ftxt">если срок истёк</text>
+<polyline points="246,158 84,158" class="ar " marker-end="url(#q2)"/>
+<text x="165.0" y="151" text-anchor="middle" class="t tl"><tspan class="qn">1</tspan> ping</text>
+<polyline points="84,194 246,194" class="ar ret" marker-end="url(#q2)"/>
+<text x="165.0" y="187" text-anchor="middle" class="t tl"><tspan class="qn">2</tspan> нет ответа</text>
+<rect x="240" y="228" width="365.0" height="26" rx="5" class="note"/><text x="252" y="246" class="t tl notet">нет ответа 10 мин подряд (порог — по приоритету камеры)</text>
+<polyline points="254,284 596,284" class="ar " marker-end="url(#q2)"/>
+<text x="425.0" y="277" text-anchor="middle" class="t tl"><tspan class="qn">3</tspan> событие: камера недоступна</text>
+<polyline points="416,378 84,378" class="ar " marker-end="url(#q2)"/>
+<text x="250.0" y="371" text-anchor="middle" class="t tl"><tspan class="qn">4</tspan> анализ кадра</text>
+<polyline points="84,414 416,414" class="ar ret" marker-end="url(#q2)"/>
+<text x="250.0" y="407" text-anchor="middle" class="t tl"><tspan class="qn">5</tspan> дефект: размытие, затемнение, артефакты, сдвиг ракурса</text>
+<polyline points="424,464 596,464" class="ar " marker-end="url(#q2)"/>
+<text x="510.0" y="457" text-anchor="middle" class="t tl"><tspan class="qn">6</tspan> событие: дефект изображения</text>
+<path d="M600,490 h34 v20 h-30" class="ar" fill="none" marker-end="url(#q2)"/>
+<text x="642" y="504" class="t tl"><tspan class="qn">7</tspan> инцидент; исполнитель и срок — из карточки и контракта</text>
+<path d="M600,534 h34 v20 h-30" class="ar" fill="none" marker-end="url(#q2)"/>
+<text x="642" y="548" class="t tl"><tspan class="qn">8</tspan> все камеры объекта молчат → одна заявка на объект</text>
+<polyline points="604,588 786,588" class="ar " marker-end="url(#q2)"/>
+<text x="695.0" y="581" text-anchor="middle" class="t tl"><tspan class="qn">9</tspan> e-mail со ссылкой: камера, адрес, место, тип, кадры, срок</text>
+<polyline points="604,624 956,624" class="ar " marker-end="url(#q2)"/>
+<text x="780.0" y="617" text-anchor="middle" class="t tl"><tspan class="qn">10</tspan> камера неисправна, заявка у исполнителя</text>
+<polyline points="786,660 84,660" class="ar " marker-end="url(#q2)"/>
+<text x="435.0" y="653" text-anchor="middle" class="t tl"><tspan class="qn">11</tspan> выезд, устранение</text>
+<polyline points="786,696 604,696" class="ar " marker-end="url(#q2)"/>
+<text x="695.0" y="689" text-anchor="middle" class="t tl"><tspan class="qn">12</tspan> «Выполнено» + фото</text>
+<polyline points="596,732 254,732" class="ar " marker-end="url(#q2)"/>
+<text x="425.0" y="725" text-anchor="middle" class="t tl"><tspan class="qn">13</tspan> проверить доступность</text>
+<polyline points="254,768 596,768" class="ar ret" marker-end="url(#q2)"/>
+<text x="425.0" y="761" text-anchor="middle" class="t tl"><tspan class="qn">14</tspan> доступна</text>
+<polyline points="596,804 424,804" class="ar " marker-end="url(#q2)"/>
+<text x="510.0" y="797" text-anchor="middle" class="t tl"><tspan class="qn">15</tspan> проверить кадр</text>
+<polyline points="424,840 596,840" class="ar ret" marker-end="url(#q2)"/>
+<text x="510.0" y="833" text-anchor="middle" class="t tl"><tspan class="qn">16</tspan> изображение в норме</text>
+<path d="M600,924 h34 v20 h-30" class="ar" fill="none" marker-end="url(#q2)"/>
+<text x="642" y="938" class="t tl"><tspan class="qn">17</tspan> заявка закрыта автоматически</text>
+<polyline points="604,978 786,978" class="ar ret" marker-end="url(#q2)"/>
+<text x="695.0" y="971" text-anchor="middle" class="t tl"><tspan class="qn">18</tspan> заявка закрыта</text>
+<polyline points="604,1014 956,1014" class="ar ret" marker-end="url(#q2)"/>
+<text x="780.0" y="1007" text-anchor="middle" class="t tl"><tspan class="qn">19</tspan> камера восстановлена</text>
+<polyline points="604,1122 786,1122" class="ar " marker-end="url(#q2)"/>
+<text x="695.0" y="1115" text-anchor="middle" class="t tl"><tspan class="qn">20</tspan> не подтверждено: что не так</text>
+<polyline points="604,1230 956,1230" class="ar " marker-end="url(#q2)"/>
+<text x="780.0" y="1223" text-anchor="middle" class="t tl"><tspan class="qn">21</tspan> просрочка исполнителем</text>
+<polyline points="604,1266 1116,1266" class="ar " marker-end="url(#q2)"/>
+<text x="860.0" y="1259" text-anchor="middle" class="t tl"><tspan class="qn">22</tspan> эскалация, отметка в отчёте</text></svg></div>
+  <figcaption>Исполнитель — своя служба владельца или подрядчик по контракту, указанный в карточке камеры; срок устранения — из контракта (например, 32 часа с учётом режима работы детского сада). Если у подрядчиков есть своя система заявок (например, ELMA), шаг 9 уходит туда по API, а статус «Выполнено» возвращается обратно.</figcaption></figure>
 </section>
 
 <section id="recon">
