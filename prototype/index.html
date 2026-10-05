@@ -304,7 +304,8 @@ figure{margin:0}
 .refimg .ph{width:100%;aspect-ratio:16/10;border-radius:8px;border:1px dashed var(--line);display:grid;place-items:center;color:var(--faint);font-size:12px;text-align:center}
 
 /* app review */
-.pos{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+.pos{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden;cursor:pointer;transition:border-color .15s}
+.pos:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
 .posn{width:20px;height:20px;border-radius:50%;background:var(--warn);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;flex:none}
 .pos.focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
 .pos-h{display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface-2);flex-wrap:wrap}
@@ -2277,7 +2278,7 @@ function pageApp() {
         const canAdd = drb && ACTIVE.includes(a.status) && !dec;
         return `<div class="secr ${s ? (s.result === 'pos' ? 'p' : 'n') : ''}"><b>${t}</b><span>${s ? (s.result === 'pos' ? 'Согласовано' : 'Не согласовано') + ' · ' + fmtD(s.date) : 'Ожидается ответ'}</span>${!s && canAdd ? `<button class="btn sm" data-act="sec" data-v="${idx}" data-ag="${k}">Внести ответ</button>` : '<span></span>'}</div>`;
       }).join('')}</div></div>` : '';
-    return `<div class="pos${UI.focusItem === idx ? ' focus' : ''}">
+    return `<div class="pos${UI.focusItem === idx ? ' focus' : ''}" data-act="focusitem" data-v="${idx}" title="Показать на карте">
       <div class="pos-h"><span class="posn">${idx + 1}</span><span class="num">${c.num}</span><b>${esc(c.name)}</b><span class="grow"></span>${dec ? pill(...{approve: ['Одобрено','ok'], rework: ['На доработку','warn'], refuse: ['Отказано','bad'], withdrawn: ['Отозвана заявителем','mute']}[dec.outcome]) : pill('Ожидает решения','info')}<button class="btn sm" data-act="focusitem" data-v="${idx}">На карте</button></div>
       <div class="pos-b"><img alt="Эталонный кадр ${c.num}" src="${frameOf(c)}">
         <div><div class="muted" style="font-size:13px">${esc(c.address)} · ${CLS[c.cls]} · ${esc(c.purpose)} · азимут ${c.az}°, угол ${c.fov}°</div>
@@ -2886,7 +2887,7 @@ document.addEventListener('click', e => {
       modal(`Одобрить без замечаний · ${a.id}`, `<div class="muted">Будут одобрены позиции без перекрытий с другими камерами и без незавершённого силового блока:</div><div class="checks">${ids.map(i => `<div class="chk ok"><span class="ic">✓</span><span>${cam(a.items[i].camId).num} — ${esc(cam(a.items[i].camId).name)}</span></div>`).join('')}</div><div class="faint" style="font-size:12px">Остальные позиции рассмотрите по одной.</div>`, `<button class="btn" data-act="mclose">Отмена</button><button class="btn ok" data-act="m-approveall" data-v="${a.id}">Одобрить ${ids.length}</button>`); break; }
     case 'm-approveall': { const a = appById(v); let n = 0; for (const i of cleanIdx(a)) if (call('POST', `/api/v1/applications/${a.id}/items/${cam(a.items[i].camId).num}/decision`, () => API.decide(a.id, i, 'approve', [], ''))) n++; toast(`Одобрено позиций: ${n}`); afterChange(); break; }
     case 'sec': mSec(+v, el.dataset.ag); break;
-    case 'focusitem': UI.focusItem = +v; { const a = appById(UI.appId), c = cam(a.items[+v].camId); VIEWS['app-' + a.id] = {x: c.x - 170, y: c.y - 120, w: 340, h: 240}; } render(); break;
+    case 'focusitem': if (el.classList.contains('pos') && UI.focusItem === +v) break; UI.focusItem = +v; { const a = appById(UI.appId), c = cam(a.items[+v].camId); VIEWS['app-' + a.id] = {x: c.x - 170, y: c.y - 120, w: 340, h: 240}; } render(); break;
     case 'kt2': mKT2(v, el.dataset.o); break;
     case 'fault': { const c = call('POST', '/api/v1/demo/esv-events/stream-lost', () => API.simulateFault()); if (c) { toast(`${c.num}: поток недоступен → «Временно отключена»`, 'bad'); render(); } break; }
     case 'resolve': if (call('POST', `/api/v1/incidents/${v}/resolve`, () => API.resolveIncident(v))) { toast('Неисправность закрыта, камера снова подключена'); render(); } break;
