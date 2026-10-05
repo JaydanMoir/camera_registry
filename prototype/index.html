@@ -1135,7 +1135,7 @@ const API = {
         if (it.change.az || it.change.fov) { c.factAz = c.az; c.factFov = c.fov; }
         hist(c, `ДРБ: изменение одобрено (${a.id}) — ${changeText(it.change)}`);
         if (c.esvId && ['connected', 'suspended'].includes(c.esv)) {
-          S.api.unshift({t: S.clock, who: 'Платформа → ЕСВ', method: 'PATCH', path: `ЕСВ (NETRIS) /api/v1/cameras/${c.esvId}`, status: 200});
+          S.api.unshift({t: S.clock, who: 'Платформа → ЕСВ', method: 'PATCH', path: `ЕСВ /api/v1/cameras/${c.esvId}`, status: 200});
           hist(c, 'Запись в ЕСВ обновлена через API');
           notify('rya', `${c.num}: одобрено изменение (${changeText(it.change)}), запись в ЕСВ обновлена автоматически.`, {cam: c.id});
         }
@@ -1374,7 +1374,7 @@ const API = {
     if (!c.channelCheck || !c.channelCheck.ok) conflict('CHANNEL_CHECK_FAILED', 'Замер канала не выполнен или не соответствует нормам');
     if (!recordConfirmed) bad('RECORD_NOT_CONFIRMED', 'Подтвердите, что параметры записи для ЕСВ проверены');
     const uuid = (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, ch => { const r = Math.random() * 16 | 0; return (ch === 'x' ? r : (r & 3 | 8)).toString(16); }));
-    S.api.unshift({t: S.clock, who: 'Платформа → ЕСВ', method: 'POST', path: 'ЕСВ (NETRIS) /api/v1/cameras', status: 201});
+    S.api.unshift({t: S.clock, who: 'Платформа → ЕСВ', method: 'POST', path: 'ЕСВ /api/v1/cameras', status: 201});
     c.esv = 'connected'; c.esvId = uuid; c.connectedAt = S.clock; c.channel = {...c.channelCheck, stream: c.streamCheck}; c.availability = 100;
     S.esvExport.push({esvId: uuid, name: c.fullName, x: c.x, y: c.y});
     hist(c, `Добавлена в ЕСВ через API: запись создана, id ${uuid}; ЕСВ получает поток → «Подключена»`);
@@ -1402,7 +1402,7 @@ const API = {
     if (fails.length) bad('CHANNEL_NORMS', `Канал класса ${f.cls} не соответствует нормам: ${fails.join('; ')}`);
     c.esv = 'connected'; c.esvId = 'ESV-' + (41000 + S.seq.cam++); c.connectedAt = S.clock; c.channel = {...f, stream: c.streamCheck}; c.availability = 100;
     if (c.cls === 'analytics' && modelById(c.passport.model)?.ptz) hist(c, 'Предупреждение: поворотная камера для аналитики');
-    hist(c, `Запись передана в ЕСВ по API (формат NETRIS), получен ${c.esvId}; канал класса ${f.cls} → «Подключена»`);
+    hist(c, `Запись передана в ЕСВ по API, получен ${c.esvId}; канал класса ${f.cls} → «Подключена»`);
     audit(`Подключение подтверждено, канал ${f.cls}`, c.num);
     S.viewChecks.unshift({id: 'v' + Date.now(), camId: c.id, at: S.clock, similarity: 86, status: 'ok'});
     notify('owner', `${c.num} добавлена в ЕСВ (${c.esvId}). Для просмотра видео с камеры нужен доступ к ЕСВ — заявка подаётся отдельно.`, {cam: c.id});
@@ -2146,7 +2146,7 @@ function esvRecord(c) {
   return [['name', c.fullName], ['description', c.descr || ''], ['lat, lng', lat.toFixed(6) + ', ' + lng.toFixed(6)], ['district', 'Ноябрьск'], ['address', c.address],
     ['groups', groupOf(c) || ''], ['sourceUrl', (c.rtsp || '') + '  ← пароль подставит платформа при отправке'], ['cameraType', c.esvType || ''], ['hasPTZ', m.ptz ? 'true' : 'false'],
     ['vend, model', m.custom ? m.vendor + ' ' + m.model : (m.name || '').replace(' (демо)', '')], ['ip', c.ip || ''], ['defaultAzimuth, defaultViewAngle', `${c.factAz ?? c.az}, ${c.factFov ?? c.fov}`],
-    ['apiType, archiveLength', 'NETRIS, 2592000'], ['extendedInfo', c.agreement ? S.agreements[c.agreement].title : '']];
+    ['archiveLength', '2592000'], ['extendedInfo', c.agreement ? S.agreements[c.agreement].title : '']];
 }
 function stageBox(c) {
   if (c.place === 'rejected' || c.place === 'retired') return '';
@@ -2742,7 +2742,7 @@ function mProtocol(id) {
     <div class="row"><button class="btn" data-act="stream" data-v="${id}">Проверить поток через esvcheck</button><span class="faint" style="font-size:12px">Запрос идёт с сервера платформы; логин и пароль подставляет сервер, они не показываются</span></div>
     <div id="stream-out">${streamBox(c.streamCheck)}</div>
     <div class="sec-t" style="margin:6px 0 0">2. Запись для ЕСВ — сформирована из карточки</div>
-    <details class="esvrec"><summary>Показать поля (формат импорта ЕСВ, NETRIS)</summary><dl class="kv">${esvRecord(c).map(([k, v]) => `<dt class="num">${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl></details>
+    <details class="esvrec"><summary>Показать поля (формат импорта ЕСВ)</summary><dl class="kv">${esvRecord(c).map(([k, v]) => `<dt class="num">${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl></details>
     <div class="faint" style="font-size:12px">При подтверждении запись уходит в ЕСВ по API; xlsx-форма и письмо на help@ не нужны.</div>
     <div class="sec-t" style="margin:6px 0 0">3. Канал ${c.link ? '· ' + esc(c.link.mode === 'rmtks' ? 'РМТКС на объекте' : 'VPN: ' + c.link.operator) + ' → ' + esc(RMTKS[c.link.node].replace('Узел РМТКС, ', '')) : ''} · замер и итог</div>
     <div class="grid2"><label class="fld"><span>Класс канала</span><select id="f-cls"><option value="A">А — наземный</option><option value="B">Б — спутник / сотовая связь</option></select></label>
@@ -2964,7 +2964,7 @@ document.addEventListener('click', e => {
     case 'passdl': { const c = cam(v); saveFileAs(`Паспорт_СВН_${c.num}.html`, passDocHTML(c), 'text/html', 'Паспорт сохранён'); break; }
     case 'annexdl': { const ag = S.agreements[v], cs = S.cameras.filter(c => c.agreement === v && derived(c) !== 'arch'); saveFileAs(`Приложение_1_${ag.title.replace(/[^0-9А-Яа-яA-Za-z]+/g, '_')}.html`, annexHTML(v, cs), 'text/html', 'Приложение № 1 сохранено'); break; }
     case 'chan': { const c = cam(v); const r = call('POST', `/api/v1/cameras/${c.num}/channel-check`, () => API.channelCheck(v, {link: {mode: $('#f-lmode').value, node: $('#f-lnode').value, operator: $('#f-lop').value.trim()}, cls: $('#f-cls').value, bw: +$('#f-bw').value, rtt: +$('#f-rtt').value, jitter: +$('#f-jit').value, loss: +$('#f-loss').value})); if (r) { UI.lastChan = {link: {...c.link}, cls: r.cls, bw: r.bw, rtt: r.rtt, jitter: r.jitter, loss: r.loss}; toast(r.ok ? 'Канал соответствует нормам' : 'Канал не соответствует нормам', r.ok ? 'ok' : 'bad'); reopenEsv(v); } break; }
-    case 'esv-add': { const c = cam(v); const r = call('POST', `/api/v1/cameras/${c.num}/esv:add`, () => API.addToEsv(v, !!(UI.recOk && UI.recOk[v]))); if (r) { closeModal(); if (el.dataset.next) { const nx = ryaQueues().toConnect.find(x => !x.rework); render(); toast(`${c.num} добавлена в ЕСВ`); if (nx) { UI.recOk = {}; mEsvAdd(nx.id); } break; } toast(`${c.num} добавлена в ЕСВ, id ${r.esvId}`, 'ok', 'POST ЕСВ (NETRIS) /api/v1/cameras → 201 Created'); render(); } break; }
+    case 'esv-add': { const c = cam(v); const r = call('POST', `/api/v1/cameras/${c.num}/esv:add`, () => API.addToEsv(v, !!(UI.recOk && UI.recOk[v]))); if (r) { closeModal(); if (el.dataset.next) { const nx = ryaQueues().toConnect.find(x => !x.rework); render(); toast(`${c.num} добавлена в ЕСВ`); if (nx) { UI.recOk = {}; mEsvAdd(nx.id); } break; } toast(`${c.num} добавлена в ЕСВ, id ${r.esvId}`, 'ok', 'POST ЕСВ /api/v1/cameras → 201 Created'); render(); } break; }
     case 'esv-return': { modal('Вернуть владельцу', `<label class="fld"><span>Что исправить — увидит владелец</span><textarea id="f-rwreason" placeholder="Например: RTSP-ссылка ведёт на субпоток, укажите основной поток"></textarea></label>`, `<button class="btn" data-act="mclose">Отмена</button><button class="btn warn" data-act="m-esv-return" data-v="${v}">Вернуть</button>`); break; }
     case 'm-esv-return': { const c = cam(v); if (call('POST', `/api/v1/cameras/${c.num}/return`, () => API.returnToOwner(v, $('#f-rwreason').value))) { closeModal(); toast(`${c.num} возвращена владельцу`); render(); } break; }
     case 'factgen': window._factFrame = 'gen'; { const st = $('#factstate'); if (st) st.textContent = 'приложен пример кадра'; } break;
