@@ -15,7 +15,7 @@ const pool = process.env.DATABASE_URL ? new Pool({connectionString: process.env.
 let dbReady = false;
 
 /* ---------- статика: файлы читаются и сжимаются один раз при запуске ---------- */
-const TYPES = {'.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json'};
+const TYPES = {'.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.pdf': 'application/pdf'};
 const files = new Map();
 function addFile(url, file) {
   const body = fs.readFileSync(file);
